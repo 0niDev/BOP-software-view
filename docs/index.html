@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>ERP System</title>
+        <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #64748b;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #06b6d4;
+            --background: #f8fafc;
+            --surface: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --sidebar-bg: #0f172a;
+            --sidebar-text: #94a3b8;
+            --sidebar-active: #3b82f6;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--background);
+            color: var(--text-primary);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .app {
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 260px;
+            background: var(--sidebar-bg);
+            color: var(--sidebar-text);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            z-index: 1000;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+        .brand {
+            font-weight: 700;
+            font-size: 18px;
+            padding: 20px 24px;
+            color: #fff;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            letter-spacing: -0.5px;
+        }
+        .nav {
+            flex: 1;
+            padding: 16px 12px;
+        }
+        .nav a {
+            display: flex;
+            align-items: center;
+            padding: 10px 16px;
+            margin: 4px 0;
+            border-radius: 8px;
+            color: var(--sidebar-text);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .nav a:hover { 
+            background: rgba(255,255,255,0.08); 
+            color: #fff; 
+            transform: translateX(2px);
+        }
+        .nav a.active { 
+            background: var(--sidebar-active); 
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+        }
+        .nav .section-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #475569;
+            padding: 16px 16px 8px;
+            letter-spacing: 1px;
+        }
+        .footer {
+            padding: 16px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            font-size: 12px;
+            text-align: center;
+            color: #475569;
+        }
+        .main {
+            margin-left: 260px;
+            flex: 1;
+            padding: 24px 32px;
+            max-width: calc(100% - 260px);
+            transition: margin-left 0.3s ease, max-width 0.3s ease;
+        }
+        .mobile-header {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: var(--sidebar-bg);
+            position: sticky;
+            top: 0;
+            z-index: 999;
+        }
+        .mobile-header h1 {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .menu-toggle {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .menu-toggle:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .overlay.active {
+            display: block;
+            opacity: 1;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .header h1 { 
+            font-size: 28px; 
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.5px;
+        }
+        .header .time { 
+            color: var(--text-secondary); 
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+        .kpi {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .kpi:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .kpi .label { 
+            color: var(--text-secondary); 
+            font-size: 12px; 
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .kpi .value { 
+            font-size: 26px; 
+            font-weight: 700; 
+            margin-top: 8px;
+            letter-spacing: -0.5px;
+        }
+        .kpi .value.green { color: var(--success); }
+        .kpi .value.blue { color: var(--primary); }
+        .kpi .value.purple { color: #8b5cf6; }
+        .kpi .value.orange { color: var(--warning); }
+        .kpi .value.red { color: var(--danger); }
+        .kpi .value.teal { color: var(--info); }
+        .kpi small {
+            display: block;
+            margin-top: 8px;
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .card h3 {
+            font-size: 16px;
+            font-weight: 600;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+            color: var(--text-primary);
+            letter-spacing: -0.3px;
+        }
+        .card table { width: 100%; font-size: 14px; border-collapse: collapse; }
+        .card th { 
+            text-align: left; 
+            color: var(--text-secondary); 
+            font-size: 11px; 
+            font-weight: 600;
+            text-transform: uppercase; 
+            padding: 12px 16px; 
+            border-bottom: 2px solid var(--border);
+            letter-spacing: 0.5px;
+        }
+        .card td { 
+            padding: 14px 16px; 
+            border-bottom: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+        .card tr:hover td { background: #f8fafc; }
+        .card .text-left { text-align: left; }
+        .card .text-right { text-align: right; }
+        .card .amount { text-align: right; font-weight: 600; }
+        .card .amount.positive { color: var(--success); }
+        .card .amount.negative { color: var(--danger); }
+        .card .amount.bold { font-weight: 700; }
+        .card .total-row td { 
+            border-top: 2px solid var(--text-primary); 
+            font-weight: 700;
+            background: #f8fafc;
+        }
+        .card .section-row td {
+            background: #f1f5f9;
+            font-weight: 600;
+            border-top: 2px solid var(--text-primary);
+        }
+        .card .sub-total td {
+            border-top: 1px solid #94a3b8;
+            font-weight: 600;
+        }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        .loading { 
+            text-align: center; 
+            padding: 60px 20px; 
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        .error { 
+            color: var(--danger); 
+            padding: 32px 20px; 
+            text-align: center;
+            background: #fef2f2;
+            border-radius: 8px;
+            border: 1px solid #fecaca;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-success { background: #dcfce7; color: #166534; }
+        .badge-danger { background: #fee2e2; color: #991b1b; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        .badge-info { background: #cffafe; color: #0e7490; }
+        .status-active { color: var(--success); font-weight: 600; }
+        .status-inactive { color: var(--danger); font-weight: 600; }
+        .report-header {
+            text-align: center;
+            border-bottom: 2px solid var(--text-primary);
+            padding-bottom: 16px;
+            margin-bottom: 20px;
+        }
+        .report-header h2 { 
+            font-size: 20px; 
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .report-header .period { 
+            font-size: 13px; 
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        .report-footer {
+            margin-top: 20px;
+            border-top: 1px solid var(--border);
+            padding-top: 16px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        .status-badge.balanced { background: #dcfce7; color: #166534; }
+        .status-badge.unbalanced { background: #fee2e2; color: #991b1b; }
+        .grand-total-box {
+            display: flex;
+            justify-content: space-around;
+            padding: 16px;
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-top: 16px;
+            font-weight: 600;
+        }
+        
+        /* Mobile Responsive */
+        @media (max-width: 1024px) {
+            .main {
+                padding: 20px 24px;
+            }
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar { 
+                transform: translateX(-100%);
+            }
+            .sidebar.active {
+                transform: translateX(0);
+            }
+            .mobile-header {
+                display: flex;
+            }
+            .main { 
+                margin-left: 0; 
+                max-width: 100%; 
+                padding: 16px 20px;
+            }
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+                margin-bottom: 24px;
+            }
+            .header h1 {
+                font-size: 24px;
+            }
+            .grid-2 { 
+                grid-template-columns: 1fr; 
+            }
+            .kpi-grid { 
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            .kpi {
+                padding: 16px 20px;
+            }
+            .kpi .value {
+                font-size: 22px;
+            }
+            .card {
+                padding: 16px 20px;
+                border-radius: 10px;
+            }
+            .card h3 {
+                font-size: 15px;
+                padding-bottom: 12px;
+                margin-bottom: 12px;
+            }
+            .card table {
+                font-size: 13px;
+            }
+            .card th, .card td {
+                padding: 10px 12px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .main {
+                padding: 12px 16px;
+            }
+            .header h1 {
+                font-size: 20px;
+            }
+            .kpi .value {
+                font-size: 20px;
+            }
+            .card {
+                padding: 14px 16px;
+            }
+        }
+        
+        @media print {
+            .sidebar { display: none; }
+            .main { margin-left: 0; max-width: 100%; }
+            .card { border: none; box-shadow: none; }
+            .header .time { display: none; }
+        }
+    </style>
+    </head>
+    <body>
+        <div class="app">
+            <nav class="sidebar">
+                <div class="brand">ERP System</div>
+                <div class="nav">
+                    <div class="section-label">Data</div>
+                    <a href="#" class="active" data-page="dashboard">Dashboard</a>
+                    <a href="#" data-page="parties">Parties</a>
+                    <a href="#" data-page="items">Items</a>
+                    <a href="#" data-page="sales">Sales</a>
+                    <a href="#" data-page="purchases">Purchases</a>
+                    <a href="#" data-page="accounts">Accounts</a>
+                    <a href="#" data-page="stock">Stock</a>
+                    <div class="section-label">Reports</div>
+                    <a href="#" data-page="trial-balance">Trial Balance</a>
+                    <a href="#" data-page="profit-loss">Profit & Loss</a>
+                    <a href="#" data-page="balance-sheet">Balance Sheet</a>
+                    <a href="#" data-page="cash-book">Cash Book</a>
+                    <a href="#" data-page="party-ledger">Party Ledger</a>
+                </div>
+                <div class="footer">Version 2.0</div>
+            </nav>
+
+            <main class="main">
+                <div class="mobile-header">
+                    <h1>ERP System</h1>
+                    <button class="menu-toggle" id="menuToggle">&#9776;</button>
+                </div>
+                <div class="header">
+                    <h1 id="title">Dashboard</h1>
+                    <span class="time" id="time">Loading...</span>
+                </div>
+                <div id="content"><div class="loading">Loading data from SQLite Cloud...</div></div>
+            </main>
+        </div>
+        <div class="overlay" id="overlay"></div>
+
+        <script>
+        const API = window.location.origin;
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.querySelector('.sidebar');
+        const overlay = document.getElementById('overlay');
+
+        function toggleMenu() {
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        }
+
+        menuToggle.addEventListener('click', toggleMenu);
+        overlay.addEventListener('click', toggleMenu);
+
+        document.querySelectorAll('.nav a').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                document.querySelectorAll('.nav a').forEach(a => a.classList.remove('active'));
+                this.classList.add('active');
+                const titleText = this.textContent.trim();
+                document.getElementById('title').textContent = titleText;
+                loadPage(this.dataset.page);
+                if (window.innerWidth <= 768) {
+                    toggleMenu();
+                }
+            });
+        });
+
+        function loadPage(page) {
+            document.getElementById('content').innerHTML = '<div class="loading">Loading...</div>';
+            const pages = {
+                'dashboard': loadDashboard,
+                'parties': loadParties,
+                'items': loadItems,
+                'sales': loadSales,
+                'purchases': loadPurchases,
+                'accounts': loadAccounts,
+                'stock': loadStock,
+                'trial-balance': loadTrialBalance,
+                'profit-loss': loadProfitLoss,
+                'balance-sheet': loadBalanceSheet,
+                'cash-book': loadCashBook,
+                'party-ledger': loadPartyLedger
+            };
+            if (pages[page]) pages[page]();
+            else loadDashboard();
+        }
+
+        function fetchAPI(endpoint) {
+            return fetch(`${API}/api/${endpoint}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) throw new Error(data.error || 'API error');
+                    return data.data;
+                });
+        }
+
+        function fetchReport(endpoint) {
+            return fetch(`${API}/api/reports/${endpoint}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) throw new Error(data.error || 'Report error');
+                    return data.data;
+                });
+        }
+
+        // ============================================================
+        // DASHBOARD
+        // ============================================================
+        function loadDashboard() {
+            fetchAPI('dashboard').then(d => {
+                document.getElementById('time').textContent = 'Updated: ' + new Date(d.timestamp).toLocaleTimeString();
+                document.getElementById('content').innerHTML = `
+                    <div class="kpi-grid">
+                        <div class="kpi">
+                            <div class="label">Today's Sales</div>
+                            <div class="value green">Rs. ${Number(d.today.sales_total).toLocaleString()}</div>
+                            <small>${d.today.sales_count} invoices</small>
+                        </div>
+                        <div class="kpi">
+                            <div class="label">Today's Purchases</div>
+                            <div class="value red">Rs. ${Number(d.today.purchases_total).toLocaleString()}</div>
+                            <small>${d.today.purchases_count} invoices</small>
+                        </div>
+                        <div class="kpi">
+                            <div class="label">Cash Balance</div>
+                            <div class="value green">Rs. ${Number(d.balances.cash).toLocaleString()}</div>
+                        </div>
+                        <div class="kpi">
+                            <div class="label">Bank Balance</div>
+                            <div class="value blue">Rs. ${Number(d.balances.bank).toLocaleString()}</div>
+                        </div>
+                        <div class="kpi">
+                            <div class="label">Inventory Value</div>
+                            <div class="value purple">Rs. ${Number(d.balances.inventory).toLocaleString()}</div>
+                        </div>
+                        <div class="kpi">
+                            <div class="label">Total Revenue</div>
+                            <div class="value orange">Rs. ${Number(d.revenue).toLocaleString()}</div>
+                        </div>
+                        <div class="kpi">
+                            <div class="label">Items</div>
+                            <div class="value blue">${d.total_items}</div>
+                        </div>
+                        <div class="kpi">
+                            <div class="label">Parties</div>
+                            <div class="value purple">${d.total_parties}</div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3>Recent Transactions</h3>
+                        <table>
+                            <thead><tr><th>Reference</th><th>Date</th><th>Type</th><th class="text-right">Amount</th></tr></thead>
+                            <tbody>
+                                ${d.recent_transactions.map(t => `
+                                    <tr>
+                                        <td>${t.reference}</td>
+                                        <td>${t.date}</td>
+                                        <td>${t.type}</td>
+                                        <td class="amount ${t.type === 'Sales' ? 'positive' : 'negative'}">Rs. ${Number(t.amount).toLocaleString()}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }).catch(err => {
+                document.getElementById('content').innerHTML = `<div class="error">Error: ${err.message}</div>`;
+            });
+        }
+
+        // ============================================================
+        // PARTIES
+        // ============================================================
+        function loadParties() {
+            fetchAPI('parties').then(data => {
+                document.getElementById('content').innerHTML = `
+                    <div class="card">
+                        <h3>All Parties</h3>
+                        <table>
+                            <thead><tr><th>Code</th><th>Name</th><th>Type</th><th>Phone</th><th>Credit Limit</th><th>Status</th></tr></thead>
+                            <tbody>
+                                ${data.map(p => `
+                                    <tr>
+                                        <td>${p.code}</td>
+                                        <td class="text-left">${p.name}</td>
+                                        <td>${p.party_type}</td>
+                                        <td>${p.phone || '-'}</td>
+                                        <td class="amount">Rs. ${Number(p.credit_limit).toLocaleString()}</td>
+                                        <td><span class="badge badge-success">Active</span></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }).catch(err => {
+                document.getElementById('content').innerHTML = `<div class="error">Error: ${err.message}</div>`;
+            });
+        }
+
+        // ============================================================
+        // ITEMS
+        // ============================================================
+        function loadItems() {
+            fetchAPI('items').then(data => {
+                document.getElementById('content').innerHTML = `
+                    <div class="card">
+                        <h3>Inventory Items</h3>
+                        <table>
+                            <thead><tr><th>Code</th><th>Name</th><th>Unit</th><th>Purchase Price</th><th>Selling Price</th><th>Stock</th><th>Value</th></tr></thead>
+                            <tbody>
+                                ${data.map(i => `
+                                    <tr>
+                                        <td>${i.item_code}</td>
+                                        <td class="text-left">${i.item_name}</td>
+                                        <td>${i.unit}</td>
+                                        <td class="amount">Rs. ${Number(i.purchase_price).toLocaleString()}</td>
+                                        <td class="amount">Rs. ${Number(i.selling_price).toLocaleString()}</td>
+                                        <td class="amount">${Number(i.current_stock).toFixed(2)}</td>
+                                        <td class="amount">Rs. ${Number(i.stock_value).toLocaleString()}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }).catch(err => {
+                document.getElementById('content').innerHTML = `<div class="error">Error: ${err.message}</div>`;
+            });
+        }
+
+        // ============================================================
+        // SALES
+        // ============================================================
+        function loadSales() {
+            fetchAPI('invoices/sales').then(data => {
+                document.getElementById('content').innerHTML = `
+                    <div class="card">
+                        <h3>Sales Invoices</h3>
+                        <table>
+                            <thead><tr><th>Invoice #</th><th>Customer</th><th>Date</th><th>Total</th><th>Status</th></tr></thead>
+                            <tbody>
+                                ${data.map(inv => `
+                                    <tr>
+                                        <td>${inv.invoice_number}</td>
+                                        <td class="text-left">${inv.customer_name || 'Unknown'}</td>
+                                        <td>${inv.invoice_date}</td>
+                                        <td class="amount positive">Rs. ${Number(inv.total_amount).toLocaleString()}</td>
+                                        <td><span class="badge badge-success">${inv.status}</span></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }).catch(err => {
+                document.getElementById('content').innerHTML = `<div class="error">Error: ${err.message}</div>`;
+            });
+        }
+
+        // ============================================================
+        // PURCHASES
+        // ============================================================
+        function loadPurchases() {
+            fetchAPI('invoices/purchases').then(data => {
+                document.getElementById('content').innerHTML = `
+                    <div class="card">
+                        <h3>Purchase Invoices</h3>
+                        <table>
+                            <thead><tr><th>Invoice #</th><th>Supplier</th><th>Date</th><th>Total</th><th>Status</th></tr></thead>
+                            <tbody>
+                                ${data.map(inv => `
+                                    <tr>
+                                        <td>${inv.invoice_number}</td>
+                                        <td class="text-left">${inv.supplier_name || 'Unknown'}</td>
+                                        <td>${inv.invoice_date}</td>
+                                        <td class="amount negative">Rs. ${Number(inv.total_amount).toLocaleString()}</td>
+                                        <td><span class="badge badge-success">${inv.status}</span></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }).catch(err => {
+                document.getElementById('content').innerHTML = `<div class="error">Error: ${err.message}</div>`;
+            });
+        }
+
+        // ============================================================
+        // ACCOUNTS
+        // ============================================================
+        function loadAccounts() {
+            fetchAPI('accounts').then(data => {
+                document.getElementById('content').innerHTML = `
+                    <div class="card">
+                        <h3>Chart of Accounts</h3>
+                        <table>
+                            <thead><tr><th>Code</th><th>Name</th><th>Type</th><th>Opening</th><th>Current</th></tr></thead>
+                            <tbody>
+                                ${data.map(a => `
+                                    <tr>
+                                        <td>${a.account_code}</td>
+                                        <td class="text-left">${a.account_name}</td>
+                                        <td>${a.account_type}</td>
+                                        <td class="amount">Rs. ${Number(a.opening_balance).toLocaleString()}</td>
+                                        <td class="amount">Rs. ${Number(a.current_balance).toLocaleString()}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }).catch(err => {
+                document.getElementById('content').innerHTML = `<div class="error">Error: ${err.message}</div>`;
+            });
+        }
+
+        // ============================================================
+        // STOCK
+        // ============================================================
+        function loadStock() {
+            fetchAPI('stock').then(data => {
+                document.getElementById('content').innerHTML = `
+                    <div class="card">
+                        <h3>Stock Summary</h3>
+                        <table>
+                            <thead><tr><th>Code</th><th>Item</th><th>Unit</th><th>Min Stock</th><th>Total Stock</th><th>Total Value</th><th>Batches</th></tr></thead>
+                            <tbody>
+                                ${data.map(s => `
+                                    <tr ${s.total_stock < s.minimum_stock ? 'style="background:#fff3cd;"' : ''}>
+                                        <td>${s.item_code}</td>
+                                        <td class="text-left">${s.item_name}</td>
+                                        <td>${s.unit}</td>
+                                        <td class="amount">${Number(s.minimum_stock).toFixed(2)}</td>
+                                        <td class="amount ${s.total_stock < s.minimum_stock ? 'negative' : ''}">${Number(s.total_stock).toFixed(2)}</td>
+                                        <td class="amount">Rs. ${Number(s.total_value).toLocaleString()}</td>
+                                        <td class="amount">${s.batch_count}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }).catch(err => {
+                document.getElementById('content').innerHTML = `<div class="error">Error: ${err.message}</div>`;
+            });
+        }
+
+        // ============================================================
+        // TRIAL BALANCE - 6 Column Format
+        // ============================================================
+        function loadTrialBalance() {
+            fetchReport('trial-balance').then(data => {
+                const balanced = data.is_balanced;
+                const statusClass = balanced ? 'balanced' : 'unbalanced';
+                const statusText = balanced ? '✓ Balanced' : '✗ Not Balanced (Diff: Rs. ' + Number(data.balance_diff).toLocaleString() + ')';
+
+                let html = `
+                    <div class="card">
+                        <div class="report-header">
+                            <h2>TRIAL BALANCE</h2>
+                            <div class="period">${data.period_label}</div>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width:10%;">Code</th>
+                                    <th style="width:25%;text-align:left;">Name</th>
+                                    <th style="width:13%;">ODR</th>
+                                    <th style="width:13%;">OCR</th>
+                                    <th style="width:13%;">CDR</th>
+                                    <th style="width:13%;">CCR</th>
+                                    <th style="width:13%;">Net</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                const sectionOrder = ['LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE', 'ASSET'];
+                const sectionLabels = {
+                    'ASSET': 'ASSETS',
+                    'LIABILITY': 'LIABILITIES',
+                    'EQUITY': 'EQUITY',
+                    'REVENUE': 'REVENUE / SALES',
+                    'EXPENSE': 'EXPENSES'
+                };
+
+                const grouped = data.grouped_rows || {};
+                for (const accType of sectionOrder) {
+                    const rows = grouped[accType] || [];
+                    if (rows.length === 0) continue;
+
+                    html += `<tr class="section-row"><td colspan="7"><b>${sectionLabels[accType] || accType}</b></td></tr>`;
+
+                    for (const row of rows) {
+                        const net = row.cdr - row.ccr;
+                        const netColor = net >= 0 ? '#2ecc71' : '#e74c3c';
+                        html += `
+                            <tr>
+                                <td>${row.code}</td>
+                                <td class="text-left">${row.name}</td>
+                                <td class="amount">${Number(row.odr).toFixed(2)}</td>
+                                <td class="amount">${Number(row.ocr).toFixed(2)}</td>
+                                <td class="amount">${Number(row.cdr).toFixed(2)}</td>
+                                <td class="amount">${Number(row.ccr).toFixed(2)}</td>
+                                <td class="amount" style="color:${netColor};">${Number(net).toFixed(2)}</td>
+                            </tr>
+                        `;
+                    }
+                }
+
+                const netTotal = data.total_cdr - data.total_ccr;
+                const netColor = netTotal >= 0 ? '#2ecc71' : '#e74c3c';
+                html += `
+                            <tr class="total-row">
+                                <td colspan="2"><b>TOTALS</b></td>
+                                <td class="amount"><b>${Number(data.total_odr).toFixed(2)}</b></td>
+                                <td class="amount"><b>${Number(data.total_ocr).toFixed(2)}</b></td>
+                                <td class="amount"><b>${Number(data.total_cdr).toFixed(2)}</b></td>
+                                <td class="amount"><b>${Number(data.total_ccr).toFixed(2)}</b></td>
+                                <td class="amount" style="color:${netColor};"><b>${Number(netTotal).toFixed(2)}</b></td>
+                            </tr>
+                        </tbody></table>
+
+                        <div class="grand-total-box">
+                            <span>Total Net Debit: Rs. ${Number(data.total_cdr).toLocaleString()}</span>
+                            <span>Total Net Credit: Rs. ${Number(data.total_ccr).toLocaleString()}</span>
+                            <span class="status-badge ${statusClass}">${statusText}</span>
+                        </div>
+
+                        <div class="report-footer">Generated: ${new Date(data.generated_at).toLocaleString()}</div>
+                    </div>
+                `;
+
+                // Parties Summary
+                if (data.parties_summary && data.parties_summary.length > 0) {
+                    html += `
+                        <div class="card">
+                            <h3>PARTIES SUMMARY</h3>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Code</th>
+                                        <th style="text-align:left;">Party Name</th>
+                                        <th>Opening Dr</th>
+                                        <th>Opening Cr</th>
+                                        <th>Current Dr</th>
+                                        <th>Current Cr</th>
+                                        <th>Net Balance</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+
+                    let totalOpDr = 0, totalOpCr = 0, totalCurDr = 0, totalCurCr = 0;
+                    for (const p of data.parties_summary) {
+                        totalOpDr += p.opening_debit;
+                        totalOpCr += p.opening_credit;
+                        totalCurDr += p.current_debit;
+                        totalCurCr += p.current_credit;
+
+                        let netClass = '';
+                        let netLabel = '';
+                        if (p.net_balance > 0.01) {
+                            netClass = 'positive';
+                            netLabel = 'Receivable: Rs. ' + Number(p.net_balance).toLocaleString();
+                        } else if (p.net_balance < -0.01) {
+                            netClass = 'negative';
+                            netLabel = 'Payable: Rs. ' + Number(Math.abs(p.net_balance)).toLocaleString();
+                        } else {
+                            netLabel = 'Zero';
+                        }
+
+                        html += `
+                            <tr>
+                                <td>${p.party_code}</td>
+                                <td class="text-left">${p.party_name}</td>
+                                <td class="amount">${Number(p.opening_debit).toFixed(2)}</td>
+                                <td class="amount">${Number(p.opening_credit).toFixed(2)}</td>
+                                <td class="amount">${Number(p.current_debit).toFixed(2)}</td>
+                                <td class="amount">${Number(p.current_credit).toFixed(2)}</td>
+                                <td class="amount ${netClass}">${netLabel}</td>
+                            </tr>
+                        `;
+                    }
+
+                    const totalNet = totalCurDr - totalCurCr;
+                    const totalNetColor = totalNet >= 0 ? '#2ecc71' : '#e74c3c';
+                    html += `
+                            <tr class="total-row">
+                                <td colspan="2"><b>TOTAL PARTIES</b></td>
+                                <td class="amount"><b>${Number(totalOpDr).toFixed(2)}</b></td>
+                                <td class="amount"><b>${Number(totalOpCr).toFixed(2)}</b></td>
+                                <td class="amount"><b>${Number(totalCurDr).toFixed(2)}</b></td>
+                                <td class="amount"><b>${Number(totalCurCr).toFixed(2)}</b></td>
+                                <td class="amount" style="color:${totalNetColor};"><b>${Number(totalNet).toFixed(2)}</b></td>
+                            </tr>
+                        </tbody></table>
+                    </div>
+                    `;
+                }
+
+                document.getElementById('content').innerHTML = html;
+            }).catch(err => {
+                document.getElementById('content').innerHTML = `<div class="error">Error: ${err.message}</div>`;
+            });
+        }
+
+        // ============================================================
+        // PROFIT & LOSS
+        // ============================================================
+        function loadProfitLoss() {
+            // Get date range - default to this month
+            const now = new Date();
+            const monthStart = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01';
+            const today = now.toISOString().split('T')[0];
+
+            // Show date picker dialog
+            const html = `
+                <div class="card">
+                    <h3>Profit & Loss Statement</h3>
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+                        <label>From: <input type="date" id="pl-date-from" value="${monthStart}"></label>
+                        <label>To: <input type="date" id="pl-date-to" value="${today}"></label>
+                        <button onclick="loadProfitLossReport()" style="padding:6px 16px;background:#e94560;color:#fff;border:none;border-radius:6px;cursor:pointer;">Generate</button>
+                    </div>
+                    <div id="pl-results"><div class="loading">Select dates and click Generate</div></div>
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+            window.loadProfitLossReport = function() {
+                const dateFrom = document.getElementById('pl-date-from').value;
+                const dateTo = document.getElementById('pl-date-to').value;
+                document.getElementById('pl-results').innerHTML = '<div class="loading">Loading...</div>';
+
+                fetch(`${API}/api/reports/profit-loss?from=${dateFrom}&to=${dateTo}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data.success) throw new Error(data.error);
+                        const d = data.data;
+                        const isProfit = d.is_profit;
+                        const color = isProfit ? '#2ecc71' : '#e74c3c';
+                        const profitLabel = isProfit ? 'Profit' : 'Loss';
+
+                        let html2 = `
+                            <div class="report-header">
+                                <h2>PROFIT & LOSS STATEMENT</h2>
+                                <div class="period">Period: ${d.date_from} to ${d.date_to}</div>
+                            </div>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="text-align:left;width:70%;">Particulars</th>
+                                        <th style="width:30%;">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="section-row"><td colspan="2"><b>SALES</b></td></tr>
+                        `;
+
+                        for (const item of d.sales || []) {
+                            html2 += `<tr><td class="text-left">${item.code} - ${item.name}</td><td class="amount">Rs. ${Number(item.amount).toLocaleString()}</td></tr>`;
+                        }
+                        html2 += `<tr class="sub-total"><td><b>Total Sales</b></td><td class="amount"><b>Rs. ${Number(d.total_sales).toLocaleString()}</b></td></tr>`;
+
+                        html2 += `<tr class="section-row"><td colspan="2"><b>COST OF SALES</b></td></tr>`;
+                        for (const item of d.cost_of_sales || []) {
+                            html2 += `<tr><td class="text-left">${item.code} - ${item.name}</td><td class="amount negative">(Rs. ${Number(item.amount).toLocaleString()})</td></tr>`;
+                        }
+                        html2 += `<tr class="sub-total"><td><b>Total Cost of Sales</b></td><td class="amount negative"><b>(Rs. ${Number(d.total_cost_of_sales).toLocaleString()})</b></td></tr>`;
+
+                        const gpColor = d.gross_profit >= 0 ? '#2ecc71' : '#e74c3c';
+                        html2 += `<tr style="border-top:2px solid ${gpColor};"><td><b>Gross Profit</b></td><td class="amount" style="color:${gpColor};font-weight:700;">Rs. ${Number(d.gross_profit).toLocaleString()}</td></tr>`;
+
+                        html2 += `<tr class="section-row"><td colspan="2"><b>OPERATING EXPENSES</b></td></tr>`;
+
+                        if (d.general_admin && d.general_admin.length > 0) {
+                            html2 += `<tr><td colspan="2" style="font-weight:600;background:#f8f9fa;">General & Administrative Expenses</td></tr>`;
+                            for (const item of d.general_admin) {
+                                html2 += `<tr><td class="text-left">${item.code} - ${item.name}</td><td class="amount negative">(Rs. ${Number(item.amount).toLocaleString()})</td></tr>`;
+                            }
+                            html2 += `<tr class="sub-total"><td><b>Total General & Admin</b></td><td class="amount negative"><b>(Rs. ${Number(d.total_general_admin).toLocaleString()})</b></td></tr>`;
+                        }
+
+                        if (d.selling_distribution && d.selling_distribution.length > 0) {
+                            html2 += `<tr><td colspan="2" style="font-weight:600;background:#f8f9fa;">Selling & Distribution Expenses</td></tr>`;
+                            for (const item of d.selling_distribution) {
+                                html2 += `<tr><td class="text-left">${item.code} - ${item.name}</td><td class="amount negative">(Rs. ${Number(item.amount).toLocaleString()})</td></tr>`;
+                            }
+                            html2 += `<tr class="sub-total"><td><b>Total Selling & Distribution</b></td><td class="amount negative"><b>(Rs. ${Number(d.total_selling_distribution).toLocaleString()})</b></td></tr>`;
+                        }
+
+                        if (d.other_operating && d.other_operating.length > 0) {
+                            html2 += `<tr><td colspan="2" style="font-weight:600;background:#f8f9fa;">Other Operating Expenses</td></tr>`;
+                            for (const item of d.other_operating) {
+                                html2 += `<tr><td class="text-left">${item.code} - ${item.name}</td><td class="amount negative">(Rs. ${Number(item.amount).toLocaleString()})</td></tr>`;
+                            }
+                            html2 += `<tr class="sub-total"><td><b>Total Other Operating</b></td><td class="amount negative"><b>(Rs. ${Number(d.total_other_operating).toLocaleString()})</b></td></tr>`;
+                        }
+
+                        html2 += `<tr class="sub-total" style="border-top:2px solid #17a2b8;color:#17a2b8;"><td><b>Total Operating Expenses</b></td><td class="amount negative"><b>(Rs. ${Number(d.total_operating_expenses).toLocaleString()})</b></td></tr>`;
+
+                        if (d.other_income && d.other_income.length > 0) {
+                            html2 += `<tr class="section-row"><td colspan="2"><b>OTHER INCOME</b></td></tr>`;
+                            for (const item of d.other_income) {
+                                html2 += `<tr><td class="text-left">${item.code} - ${item.name}</td><td class="amount">Rs. ${Number(item.amount).toLocaleString()}</td></tr>`;
+                            }
+                            html2 += `<tr class="sub-total"><td><b>Total Other Income</b></td><td class="amount"><b>Rs. ${Number(d.total_other_income).toLocaleString()}</b></td></tr>`;
+                        }
+
+                        const pfoColor = d.profit_from_operations >= 0 ? '#2ecc71' : '#e74c3c';
+                        html2 += `<tr class="sub-total" style="border-top:2px solid ${pfoColor};color:${pfoColor};"><td><b>Profit from Operations</b></td><td class="amount"><b>Rs. ${Number(d.profit_from_operations).toLocaleString()}</b></td></tr>`;
+
+                        if (d.finance_cost && d.finance_cost.length > 0) {
+                            html2 += `<tr class="section-row"><td colspan="2"><b>FINANCE COST</b></td></tr>`;
+                            for (const item of d.finance_cost) {
+                                html2 += `<tr><td class="text-left">${item.code} - ${item.name}</td><td class="amount negative">(Rs. ${Number(item.amount).toLocaleString()})</td></tr>`;
+                            }
+                            html2 += `<tr class="sub-total"><td><b>Total Finance Cost</b></td><td class="amount negative"><b>(Rs. ${Number(d.total_finance_cost).toLocaleString()})</b></td></tr>`;
+                        }
+
+                        html2 += `<tr class="total-row"><td><b>Net ${profitLabel}</b></td><td class="amount" style="color:${color};font-size:16px;"><b>Rs. ${Number(d.net_profit).toLocaleString()}</b></td></tr>`;
+                        html2 += `
+                                </tbody>
+                            </table>
+                            <div class="report-footer">Generated: ${new Date(d.generated_at).toLocaleString()}</div>
+                        `;
+
+                        document.getElementById('pl-results').innerHTML = html2;
+                    })
+                    .catch(err => {
+                        document.getElementById('pl-results').innerHTML = `<div class="error">Error: ${err.message}</div>`;
+                    });
+            };
+        }
+
+        // ============================================================
+        // BALANCE SHEET
+        // ============================================================
+        function loadBalanceSheet() {
+            fetchReport('balance-sheet').then(data => {
+                const balanced = data.is_balanced;
+                const statusClass = balanced ? 'balanced' : 'unbalanced';
+                const statusText = balanced ? '✓ Balanced' : '✗ Not Balanced';
+
+                let html = `
+                    <div class="card">
+                        <div class="report-header">
+                            <h2>BALANCE SHEET</h2>
+                            <div class="period">AS AT ${data.as_at}</div>
+                        </div>
+                        <div class="grid-2">
+                            <div>
+                                <h3 style="font-size:13px;border-bottom:2px solid #1a1a2e;padding-bottom:6px;">EQUITY AND LIABILITIES</h3>
+                                <table>
+                                    <thead>
+                                        <tr><th style="text-align:left;">Particulars</th><th>Amount</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr class="section-row"><td colspan="2"><b>SHARE CAPITAL AND RESERVES</b></td></tr>
+                `;
+
+                if (data.authorised_capital) {
+                    html += `<tr><td class="text-left">Authorised share capital</td><td class="amount">Rs. ${Number(data.authorised_capital).toLocaleString()}</td></tr>`;
+                }
+                if (data.issued_capital) {
+                    html += `<tr><td class="text-left">Issued, subscribed and paid up capital</td><td class="amount">Rs. ${Number(data.issued_capital).toLocaleString()}</td></tr>`;
+                }
+                if (data.retained_earnings) {
+                    html += `<tr><td class="text-left">Revenue reserve</td><td class="amount">Rs. ${Number(data.retained_earnings).toLocaleString()}</td></tr>`;
+                }
+
+                for (const eq of data.equity || []) {
+                    const name = eq.name || '';
+                    const nameLower = name.toLowerCase();
+                    if (!['owner\'s equity', 'owners equity', 'share capital', 'retained earnings', 'revenue reserve'].includes(nameLower)) {
+                        html += `<tr><td class="text-left">${name}</td><td class="amount">Rs. ${Number(eq.balance || 0).toLocaleString()}</td></tr>`;
+                    }
+                }
+
+                html += `
+                                        <tr class="sub-total"><td><b>Total equity</b></td><td class="amount"><b>Rs. ${Number(data.total_equity).toLocaleString()}</b></td></tr>
+                                        <tr class="section-row"><td colspan="2"><b>NON CURRENT LIABILITIES</b></td></tr>
+                `;
+
+                const ncl = data.non_current_liabilities || [];
+                if (ncl.length === 0) {
+                    html += `<tr><td class="text-left" style="color:#adb5bd;">No non-current liabilities</td><td class="amount">-</td></tr>`;
+                } else {
+                    for (const item of ncl) {
+                        html += `<tr><td class="text-left">${item.name}</td><td class="amount">Rs. ${Number(item.balance || 0).toLocaleString()}</td></tr>`;
+                    }
+                }
+                html += `
+                                        <tr class="sub-total"><td><b>Total Non-Current Liabilities</b></td><td class="amount"><b>Rs. ${Number(data.total_non_current_liabilities).toLocaleString()}</b></td></tr>
+                                        <tr class="section-row"><td colspan="2"><b>CURRENT LIABILITIES</b></td></tr>
+                `;
+
+                const cl = data.current_liabilities || [];
+                if (cl.length === 0) {
+                    html += `<tr><td class="text-left" style="color:#adb5bd;">No current liabilities</td><td class="amount">-</td></tr>`;
+                } else {
+                    for (const item of cl) {
+                        const neg = (item.balance || 0) < 0 ? 'negative' : '';
+                        html += `<tr><td class="text-left">${item.name}</td><td class="amount ${neg}">Rs. ${Number(item.balance || 0).toLocaleString()}</td></tr>`;
+                    }
+                }
+                html += `
+                                        <tr class="sub-total"><td><b>Total Current Liabilities</b></td><td class="amount"><b>Rs. ${Number(data.total_current_liabilities).toLocaleString()}</b></td></tr>
+                                        <tr class="total-row"><td><b>Total liabilities</b></td><td class="amount"><b>Rs. ${Number(data.total_liabilities).toLocaleString()}</b></td></tr>
+                                        <tr class="total-row" style="border-top:2.5px double #1a1a2e;"><td><b>TOTAL EQUITY AND LIABILITIES</b></td><td class="amount"><b>Rs. ${Number(data.total_liabilities_and_equity).toLocaleString()}</b></td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div>
+                                <h3 style="font-size:13px;border-bottom:2px solid #1a1a2e;padding-bottom:6px;">ASSETS</h3>
+                                <table>
+                                    <thead>
+                                        <tr><th style="text-align:left;">Particulars</th><th>Amount</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr class="section-row"><td colspan="2"><b>NON CURRENT ASSETS</b></td></tr>
+                `;
+
+                const nca = data.non_current_assets || [];
+                if (nca.length === 0) {
+                    html += `<tr><td class="text-left" style="color:#adb5bd;">No non-current assets</td><td class="amount">-</td></tr>`;
+                } else {
+                    for (const item of nca) {
+                        html += `<tr><td class="text-left">${item.name}</td><td class="amount">Rs. ${Number(item.balance || 0).toLocaleString()}</td></tr>`;
+                    }
+                }
+                html += `
+                                        <tr class="sub-total"><td><b>Total Non-Current Assets</b></td><td class="amount"><b>Rs. ${Number(data.total_non_current_assets).toLocaleString()}</b></td></tr>
+                                        <tr class="section-row"><td colspan="2"><b>CURRENT ASSETS</b></td></tr>
+                `;
+
+                const ca = data.current_assets || [];
+                if (ca.length === 0) {
+                    html += `<tr><td class="text-left" style="color:#adb5bd;">No current assets</td><td class="amount">-</td></tr>`;
+                } else {
+                    for (const item of ca) {
+                        const neg = (item.balance || 0) < 0 ? 'negative' : '';
+                        html += `<tr><td class="text-left">${item.name}</td><td class="amount ${neg}">Rs. ${Number(item.balance || 0).toLocaleString()}</td></tr>`;
+                    }
+                }
+                html += `
+                                        <tr class="sub-total"><td><b>Total Current Assets</b></td><td class="amount"><b>Rs. ${Number(data.total_current_assets).toLocaleString()}</b></td></tr>
+                                        <tr class="total-row" style="border-top:2.5px double #1a1a2e;"><td><b>TOTAL ASSETS</b></td><td class="amount"><b>Rs. ${Number(data.total_assets).toLocaleString()}</b></td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="grand-total-box">
+                            <span>Total Assets: Rs. ${Number(data.total_assets).toLocaleString()}</span>
+                            <span>Total Liabilities + Equity: Rs. ${Number(data.total_liabilities_and_equity).toLocaleString()}</span>
+                            <span class="status-badge ${statusClass}">${statusText}</span>
+                        </div>
+                        <div class="report-footer">Generated: ${new Date().toLocaleString()}</div>
+                    </div>
+                `;
+                document.getElementById('content').innerHTML = html;
+            }).catch(err => {
+                document.getElementById('content').innerHTML = `<div class="error">Error: ${err.message}</div>`;
+            });
+        }
+
+        // ============================================================
+        // CASH BOOK
+        // ============================================================
+        function loadCashBook() {
+            // Show date picker
+            const now = new Date();
+            const monthStart = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01';
+            const today = now.toISOString().split('T')[0];
+
+            const html = `
+                <div class="card">
+                    <h3>Cash Book</h3>
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+                        <label>From: <input type="date" id="cb-date-from" value="${monthStart}"></label>
+                        <label>To: <input type="date" id="cb-date-to" value="${today}"></label>
+                        <button onclick="loadCashBookReport()" style="padding:6px 16px;background:#e94560;color:#fff;border:none;border-radius:6px;cursor:pointer;">Generate</button>
+                    </div>
+                    <div id="cb-results"><div class="loading">Select dates and click Generate</div></div>
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+
+            window.loadCashBookReport = function() {
+                const dateFrom = document.getElementById('cb-date-from').value;
+                const dateTo = document.getElementById('cb-date-to').value;
+                document.getElementById('cb-results').innerHTML = '<div class="loading">Loading...</div>';
+
+                fetch(`${API}/api/reports/cash-book?from=${dateFrom}&to=${dateTo}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data.success) throw new Error(data.error);
+                        const d = data.data;
+
+                        let html2 = `
+                            <div class="report-header">
+                                <h2>CASH BOOK</h2>
+                                <div class="period">Period: ${d.date_from} to ${d.date_to}</div>
+                            </div>
+                            <table>
+                                <thead>
+                                    <tr><th>Date</th><th>Voucher</th><th style="text-align:left;">Description</th><th>Account</th><th>Received</th><th>Paid</th><th>Balance</th></tr>
+                                </thead>
+                                <tbody>
+                        `;
+
+                        for (const txn of d.transactions || []) {
+                            const balanceColor = txn.balance >= 0 ? '#2ecc71' : '#e74c3c';
+                            html2 += `
+                                <tr>
+                                    <td>${txn.date}</td>
+                                    <td>${txn.voucher}</td>
+                                    <td class="text-left">${txn.description}</td>
+                                    <td>${txn.account || ''}</td>
+                                    <td class="amount">${Number(txn.received).toFixed(2)}</td>
+                                    <td class="amount">${Number(txn.paid).toFixed(2)}</td>
+                                    <td class="amount" style="color:${balanceColor};">${Number(txn.balance).toFixed(2)}</td>
+                                </tr>
+                            `;
+                        }
+
+                        const closeColor = d.closing_balance >= 0 ? '#2ecc71' : '#e74c3c';
+                        html2 += `
+                                </tbody>
+                            </table>
+                            <div class="grand-total-box">
+                                <span>Total Received: <span style="color:#2ecc71;">Rs. ${Number(d.total_received).toLocaleString()}</span></span>
+                                <span>Total Paid: <span style="color:#e74c3c;">Rs. ${Number(d.total_paid).toLocaleString()}</span></span>
+                                <span>Closing Balance: <span style="color:${closeColor};">Rs. ${Number(d.closing_balance).toLocaleString()}</span></span>
+                            </div>
+                            <div class="report-footer">Generated: ${new Date().toLocaleString()}</div>
+                        `;
+
+                        document.getElementById('cb-results').innerHTML = html2;
+                    })
+                    .catch(err => {
+                        document.getElementById('cb-results').innerHTML = `<div class="error">Error: ${err.message}</div>`;
+                    });
+            };
+        }
+
+        // ============================================================
+        // PARTY LEDGER
+        // ============================================================
+        function loadPartyLedger() {
+            // Load parties for dropdown
+            fetchAPI('parties').then(parties => {
+                let html = `
+                    <div class="card">
+                        <h3>Party Ledger</h3>
+                        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+                            <select id="party-select" style="padding:6px 12px;border-radius:6px;border:1px solid #ccc;min-width:200px;">
+                                <option value="">Select Party...</option>
+                                ${parties.map(p => `<option value="${p.id}">${p.code} - ${p.name}</option>`).join('')}
+                            </select>
+                            <button onclick="loadPartyLedgerReport()" style="padding:6px 16px;background:#e94560;color:#fff;border:none;border-radius:6px;cursor:pointer;">Generate</button>
+                        </div>
+                        <div id="pl-ledger-results"><div class="loading">Select a party and click Generate</div></div>
+                    </div>
+                `;
+                document.getElementById('content').innerHTML = html;
+
+                window.loadPartyLedgerReport = function() {
+                    const partyId = document.getElementById('party-select').value;
+                    if (!partyId) {
+                        document.getElementById('pl-ledger-results').innerHTML = '<div class="error">Please select a party</div>';
+                        return;
+                    }
+
+                    document.getElementById('pl-ledger-results').innerHTML = '<div class="loading">Loading...</div>';
+
+                    fetch(`${API}/api/reports/party-ledger/${partyId}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (!data.success) throw new Error(data.error);
+                            const d = data.data;
+
+                            let balanceColor = '#6c757d';
+                            if (d.balance_type === 'Receivable') balanceColor = '#2ecc71';
+                            else if (d.balance_type === 'Payable') balanceColor = '#e74c3c';
+                            else if (d.balance_type === 'Credit Balance') balanceColor = '#f39c12';
+                            else if (d.balance_type === 'Debit Balance') balanceColor = '#e74c3c';
+
+                            const partyTypeLabel = d.is_customer ? 'Customer' : 'Supplier';
+
+                            let html2 = `
+                                <div class="report-header">
+                                    <h2>${d.title}</h2>
+                                </div>
+                                <div style="padding:10px;background:#f8f9fa;border:1px solid #dee2e6;border-radius:4px;margin-bottom:12px;">
+                                    <span><b>Party:</b> ${d.party.name} (${d.party.code})</span>
+                                    <span style="margin-left:20px;"><b>Type:</b> <span style="color:${d.is_customer ? '#2ecc71' : '#e74c3c'};">${partyTypeLabel}</span></span>
+                                    <span style="margin-left:20px;"><b>Opening Balance:</b> Rs. ${Number(d.opening_balance).toLocaleString()}</span>
+                                </div>
+                                <table>
+                                    <thead>
+                                        <tr><th>Date</th><th>Voucher</th><th>Type</th><th style="text-align:left;">Description</th><th>Debit</th><th>Credit</th><th>Balance</th></tr>
+                                    </thead>
+                                    <tbody>
+                            `;
+
+                            let totalDebit = 0, totalCredit = 0;
+                            for (const txn of d.transactions || []) {
+                                totalDebit += txn.debit;
+                                totalCredit += txn.credit;
+                                const balColor = txn.balance > 0.01 ? '#2ecc71' : (txn.balance < -0.01 ? '#e74c3c' : '#6c757d');
+                                const debitColor = txn.debit > 0 ? '#2ecc71' : '#6c757d';
+                                const creditColor = txn.credit > 0 ? '#e74c3c' : '#6c757d';
+
+                                html2 += `
+                                    <tr>
+                                        <td>${txn.date_formatted}</td>
+                                        <td>${txn.voucher_number}</td>
+                                        <td>${txn.voucher_type}</td>
+                                        <td class="text-left">${txn.description || '-'}</td>
+                                        <td class="amount" style="color:${debitColor};">${Number(txn.debit).toFixed(2)}</td>
+                                        <td class="amount" style="color:${creditColor};">${Number(txn.credit).toFixed(2)}</td>
+                                        <td class="amount" style="color:${balColor};">${Number(txn.balance).toFixed(2)}</td>
+                                    </tr>
+                                `;
+                            }
+
+                            html2 += `
+                                    <tr class="total-row">
+                                        <td colspan="4"><b>TOTALS</b></td>
+                                        <td class="amount"><b>${Number(totalDebit).toFixed(2)}</b></td>
+                                        <td class="amount"><b>${Number(totalCredit).toFixed(2)}</b></td>
+                                        <td class="amount"><b>${Number(d.closing_balance).toFixed(2)}</b></td>
+                                    </tr>
+                                </tbody></table>
+                                <div style="padding:12px;background:#f8f9fa;border:1px solid ${balanceColor};border-radius:4px;margin-top:12px;text-align:center;font-weight:600;color:${balanceColor};">
+                                    Closing Balance: Rs. ${Number(d.closing_balance).toLocaleString()} (${d.balance_label})
+                                </div>
+                                <div class="grand-total-box">
+                                    <span>Total Debits: Rs. ${Number(totalDebit).toLocaleString()}</span>
+                                    <span>Total Credits: Rs. ${Number(totalCredit).toLocaleString()}</span>
+                                    <span>Net Movement: Rs. ${Number(totalDebit - totalCredit).toLocaleString()}</span>
+                                </div>
+                                <div class="report-footer">Generated: ${new Date().toLocaleString()}</div>
+                            `;
+
+                            document.getElementById('pl-ledger-results').innerHTML = html2;
+                        })
+                        .catch(err => {
+                            document.getElementById('pl-ledger-results').innerHTML = `<div class="error">Error: ${err.message}</div>`;
+                        });
+                };
+            }).catch(err => {
+                document.getElementById('content').innerHTML = `<div class="error">Error loading parties: ${err.message}</div>`;
+            });
+        }
+
+        // Start with Dashboard
+        loadDashboard();
+    </script>
+    </body>
+</html>
