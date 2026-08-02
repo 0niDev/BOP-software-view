@@ -463,9 +463,50 @@
         <div class="overlay" id="overlay"></div>
 
         <script>
-        // For GitHub Pages, replace this URL with your deployed backend (e.g., on Render)
-        const API = 'https://your-backend-url.onrender.com'; // ← CHANGE THIS to your actual backend URL
-        // const API = window.location.origin; // Original line for local development
+        // SQLite Cloud REST API Configuration - Direct browser access for GitHub Pages
+        const SQLITE_CLOUD_CONFIG = {
+            apiKey: "bmJZ0l1RTFCoxS0Au17c0iofzZmrDn2Db94v0YtV9Uw",
+            database: "cool-depot.sqlite",
+            projectId: "cjja8z6pvz",
+            apiUrl: "https://cjja8z6pvz.g4.sqlite.cloud/v2/weblite/sql"
+        };
+
+        // Direct SQL query function for GitHub Pages (no backend needed)
+        async function querySQL(sql) {
+            try {
+                const response = await fetch(SQLITE_CLOUD_CONFIG.apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${SQLITE_CLOUD_CONFIG.apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sql: sql,
+                        database: SQLITE_CLOUD_CONFIG.database
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                if (data.data) {
+                    return data.data;
+                } else if (data.rows && data.columns) {
+                    return data.rows.map(row => {
+                        const obj = {};
+                        data.columns.forEach((col, i) => obj[col] = row[i]);
+                        return obj;
+                    });
+                }
+                return [];
+            } catch (error) {
+                console.error('SQLite Cloud API Error:', error);
+                throw error;
+            }
+        }
+
         const menuToggle = document.getElementById('menuToggle');
         const sidebar = document.querySelector('.sidebar');
         const overlay = document.getElementById('overlay');
@@ -512,22 +553,377 @@
             else loadDashboard();
         }
 
+        // ============================================================
+        // API WRAPPERS - Map old API endpoints to direct SQL queries
+        // ============================================================
         function fetchAPI(endpoint) {
-            return fetch(`${API}/api/${endpoint}`)
-                .then(res => res.json())
-                .then(data => {
-                    if (!data.success) throw new Error(data.error || 'API error');
-                    return data.data;
-                });
+            let sql = '';
+            
+            switch(endpoint) {
+                case 'dashboard':
+                    return loadDashboardData();
+                case 'parties':
+                    sql = "SELECT * FROM parties WHERE is_active = 1 ORDER BY name";
+                    break;
+                case 'items':
+                    sql = `SELECT i.*, 
+                           COALESCE(SUM(sb.quantity_in_stock), 0) as current_stock,
+                           COALESCE(SUM(sb.quantity_in_stock * sb.purchase_price), 0) as stock_value
+                    FROM items i
+                    LEFT JOIN stock_batches sb ON sb.item_id = i.id AND sb.is_active = 1
+                    WHERE i.is_active = 1
+                    GROUP BY i.id
+                    ORDER BY i.item_code`;
+                    break;
+                case 'invoices/sales':
+                    sql = `SELECT si.*, p.name as customer_name
+                    FROM sales_invoices si
+                    JOIN parties p ON p.id = si.customer_id
+                    WHERE si.status != 'CANCELLED'
+                    ORDER BY si.invoice_date DESC LIMIT 50`;
+                    break;
+                case 'invoices/purchases':
+                    sql = `SELECT pi.*, p.name as supplier_name
+                    FROM purchase_invoices pi
+                    JOIN parties p ON p.id = pi.supplier_id
+                    WHERE pi.status != 'CANCELLED'
+                    ORDER BY pi.invoice_date DESC LIMIT 50`;
+                    break;
+                case 'accounts':
+                    sql = `SELECT a.*, 
+                           COALESCE(SUM(jel.debit - jel.credit), 0) as current_balance
+                    FROM accounts a
+                    LEFT JOIN journal_entry_lines jel ON jel.account_id = a.id
+                    LEFT JOIN journal_entries je ON je.id = jel.journal_entry_id AND je.is_posted = 1
+                    WHERE a.is_active = 1
+                    GROUP BY a.id
+                    ORDER BY a.account_code`;
+                    break;
+                case 'stock':
+                    sql = `SELECT i.item_code, i.item_name, i.unit, i.minimum_stock,
+                           COALESCE(SUM(sb.quantity_in_stock), 0) as total_stock,
+                           COALESCE(SUM(sb.quantity_in_stock * sb.purchase_price), 0) as total_value,
+                           COUNT(DISTINCT sb.batch_number) as batch_count
+                    FROM items i
+                    LEFT JOIN stock_batches sb ON sb.item_id = i.id AND sb.is_active = 1
+                    WHERE i.is_active = 1
+                    GROUP BY i.id
+                    ORDER BY total_stock DESC`;
+                    break;
+                default:
+                    throw new Error('Unknown endpoint: ' + endpoint);
+            }
+            
+            return querySQL(sql).then(data => data);
         }
 
         function fetchReport(endpoint) {
-            return fetch(`${API}/api/reports/${endpoint}`)
-                .then(res => res.json())
-                .then(data => {
-                    if (!data.success) throw new Error(data.error || 'Report error');
-                    return data.data;
+            // Reports need special handling
+            if (endpoint === 'trial-balance') {
+                return loadTrialBalanceData();
+            } else if (endpoint === 'profit-loss') {
+                const urlParams = new URLSearchParams(window.location.search);
+                const dateFrom = urlParams.get('from') || new Date().toISOString().slice(0, 10);
+                const dateTo = urlParams.get('to') || new Date().toISOString().slice(0, 10);
+                return loadProfitLossData(dateFrom, dateTo);
+            } else if (endpoint === 'balance-sheet') {
+                return loadBalanceSheetData();
+            } else if (endpoint === 'cash-book') {
+                const urlParams = new URLSearchParams(window.location.search);
+                const dateFrom = urlParams.get('from') || new Date().toISOString().slice(0, 10);
+                const dateTo = urlParams.get('to') || new Date().toISOString().slice(0, 10);
+                return loadCashBookData(dateFrom, dateTo);
+            }
+            throw new Error('Unknown report: ' + endpoint);
+        }
+
+        // ============================================================
+        // DASHBOARD DATA LOADER
+        // ============================================================
+        async function loadDashboardData() {
+            const today = new Date().toISOString().slice(0, 10);
+            
+            // Today's sales
+            const salesToday = await querySQL(`SELECT COALESCE(SUM(total_amount), 0) as total, COUNT(*) as count
+                FROM sales_invoices 
+                WHERE date(invoice_date) = date('${today}') AND status != 'CANCELLED'`);
+            
+            // Today's purchases
+            const purchasesToday = await querySQL(`SELECT COALESCE(SUM(total_amount), 0) as total, COUNT(*) as count
+                FROM purchase_invoices 
+                WHERE date(invoice_date) = date('${today}') AND status != 'CANCELLED'`);
+            
+            // Cash balance
+            const cash = await querySQL(`SELECT COALESCE(SUM(debit - credit), 0) as balance
+                FROM journal_entry_lines jel
+                JOIN journal_entries je ON je.id = jel.journal_entry_id
+                JOIN accounts a ON a.id = jel.account_id
+                WHERE a.account_code = '1000' AND je.is_posted = 1`);
+            
+            // Bank balance
+            const bank = await querySQL(`SELECT COALESCE(SUM(debit - credit), 0) as balance
+                FROM journal_entry_lines jel
+                JOIN journal_entries je ON je.id = jel.journal_entry_id
+                JOIN accounts a ON a.id = jel.account_id
+                WHERE a.account_code = '1010' AND je.is_posted = 1`);
+            
+            // Revenue
+            const revenue = await querySQL(`SELECT COALESCE(SUM(credit), 0) as total
+                FROM journal_entry_lines jel
+                JOIN journal_entries je ON je.id = jel.journal_entry_id
+                JOIN accounts a ON a.id = jel.account_id
+                WHERE a.account_type = 'REVENUE' AND je.is_posted = 1`);
+            
+            // Inventory value
+            const inventory = await querySQL(`SELECT COALESCE(SUM(quantity_in_stock * purchase_price), 0) as value
+                FROM stock_batches WHERE is_active = 1`);
+            
+            // Total items
+            const items = await querySQL(`SELECT COUNT(*) as count FROM items WHERE is_active = 1`);
+            
+            // Total parties
+            const parties = await querySQL(`SELECT COUNT(*) as count FROM parties WHERE is_active = 1`);
+            
+            // Recent sales
+            const recentSales = await querySQL(`SELECT invoice_number as reference, invoice_date as date, 
+                   'Sales' as type, total_amount as amount
+                FROM sales_invoices WHERE status != 'CANCELLED' 
+                ORDER BY invoice_date DESC LIMIT 5`);
+            
+            // Recent purchases
+            const recentPurchases = await querySQL(`SELECT invoice_number as reference, invoice_date as date, 
+                   'Purchase' as type, total_amount as amount
+                FROM purchase_invoices WHERE status != 'CANCELLED' 
+                ORDER BY invoice_date DESC LIMIT 5`);
+            
+            const allRecent = [...recentSales, ...recentPurchases];
+            allRecent.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            return {
+                today: {
+                    sales_total: salesToday[0]?.total || 0,
+                    sales_count: salesToday[0]?.count || 0,
+                    purchases_total: purchasesToday[0]?.total || 0,
+                    purchases_count: purchasesToday[0]?.count || 0,
+                },
+                balances: {
+                    cash: cash[0]?.balance || 0,
+                    bank: bank[0]?.balance || 0,
+                    inventory: inventory[0]?.value || 0,
+                },
+                revenue: revenue[0]?.total || 0,
+                total_items: items[0]?.count || 0,
+                total_parties: parties[0]?.count || 0,
+                recent_transactions: allRecent.slice(0, 10),
+                timestamp: new Date().toISOString()
+            };
+        }
+
+        // ============================================================
+        // TRIAL BALANCE DATA LOADER
+        // ============================================================
+        async function loadTrialBalanceData() {
+            const rows = await querySQL(`SELECT 
+                a.account_code as code,
+                a.account_name as name,
+                a.account_type,
+                COALESCE(SUM(CASE WHEN je.voucher_type = 'OPENING' THEN jel.debit ELSE 0 END), 0) as odr,
+                COALESCE(SUM(CASE WHEN je.voucher_type = 'OPENING' THEN jel.credit ELSE 0 END), 0) as ocr,
+                COALESCE(SUM(jel.debit), 0) as total_debit,
+                COALESCE(SUM(jel.credit), 0) as total_credit
+            FROM accounts a
+            LEFT JOIN journal_entry_lines jel ON jel.account_id = a.id
+            LEFT JOIN journal_entries je ON je.id = jel.journal_entry_id AND je.is_posted = 1
+            WHERE a.is_active = 1
+            GROUP BY a.id
+            HAVING total_debit != 0 OR total_credit != 0
+            ORDER BY a.account_code`);
+            
+            const resultRows = [];
+            let totalCdr = 0;
+            let totalCcr = 0;
+            
+            for (const row of rows) {
+                const accType = row.account_type;
+                const odr = row.odr || 0;
+                const ocr = row.ocr || 0;
+                const totalDebit = row.total_debit || 0;
+                const totalCredit = row.total_credit || 0;
+                
+                let cdr, ccr;
+                if (accType === 'ASSET' || accType === 'EXPENSE') {
+                    const net = odr + totalDebit - totalCredit;
+                    cdr = net >= 0 ? net : 0;
+                    ccr = net >= 0 ? 0 : Math.abs(net);
+                } else {
+                    const net = ocr + totalCredit - totalDebit;
+                    cdr = net >= 0 ? 0 : Math.abs(net);
+                    ccr = net >= 0 ? net : 0;
+                }
+                
+                totalCdr += cdr;
+                totalCcr += ccr;
+                
+                resultRows.push({
+                    code: row.code,
+                    name: row.name,
+                    account_type: accType,
+                    odr: Math.round(odr * 100) / 100,
+                    ocr: Math.round(ocr * 100) / 100,
+                    cdr: Math.round(cdr * 100) / 100,
+                    ccr: Math.round(ccr * 100) / 100
                 });
+            }
+            
+            const grouped = {};
+            resultRows.forEach(row => {
+                const t = row.account_type;
+                if (!grouped[t]) grouped[t] = [];
+                grouped[t].push(row);
+            });
+            
+            const isBalanced = Math.abs(totalCdr - totalCcr) < 0.01;
+            
+            return {
+                title: "Trial Balance",
+                period_label: "As at " + new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+                generated_at: new Date().toISOString(),
+                rows: resultRows,
+                grouped_rows: grouped,
+                parties_summary: [],
+                total_odr: 0,
+                total_ocr: 0,
+                total_cdr: Math.round(totalCdr * 100) / 100,
+                total_ccr: Math.round(totalCcr * 100) / 100,
+                is_balanced: isBalanced,
+                balance_diff: Math.round(Math.abs(totalCdr - totalCcr) * 100) / 100
+            };
+        }
+
+        // ============================================================
+        // PROFIT & LOSS DATA LOADER
+        // ============================================================
+        async function loadProfitLossData(dateFrom, dateTo) {
+            const revenue = await querySQL(`SELECT a.account_code, a.account_name,
+                   COALESCE(SUM(jel.credit - jel.debit), 0) as amount
+            FROM accounts a
+            LEFT JOIN journal_entry_lines jel ON jel.account_id = a.id
+            LEFT JOIN journal_entries je ON je.id = jel.journal_entry_id
+            WHERE a.account_type = 'REVENUE' AND a.is_active = 1 
+            AND je.is_posted = 1 AND je.entry_date >= '${dateFrom}' AND je.entry_date <= '${dateTo}'
+            GROUP BY a.id
+            HAVING amount != 0
+            ORDER BY a.account_code`);
+            
+            const expenses = await querySQL(`SELECT a.account_code, a.account_name,
+                   COALESCE(SUM(jel.debit - jel.credit), 0) as amount
+            FROM accounts a
+            LEFT JOIN journal_entry_lines jel ON jel.account_id = a.id
+            LEFT JOIN journal_entries je ON je.id = jel.journal_entry_id
+            WHERE a.account_type = 'EXPENSE' AND a.is_active = 1 
+            AND je.is_posted = 1 AND je.entry_date >= '${dateFrom}' AND je.entry_date <= '${dateTo}'
+            GROUP BY a.id
+            HAVING amount != 0
+            ORDER BY a.account_code`);
+            
+            const totalRevenue = revenue.reduce((sum, r) => sum + (r.amount || 0), 0);
+            const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+            const netProfit = totalRevenue - totalExpenses;
+            
+            return {
+                title: "Profit & Loss Statement",
+                period_label: `${dateFrom} to ${dateTo}`,
+                generated_at: new Date().toISOString(),
+                revenue: { items: revenue, total: totalRevenue },
+                expenses: { items: expenses, total: totalExpenses },
+                net_profit: netProfit,
+                is_profit: netProfit >= 0
+            };
+        }
+
+        // ============================================================
+        // BALANCE SHEET DATA LOADER
+        // ============================================================
+        async function loadBalanceSheetData() {
+            const assets = await querySQL(`SELECT a.account_code, a.account_name,
+                   COALESCE(SUM(jel.debit - jel.credit), 0) as amount
+            FROM accounts a
+            LEFT JOIN journal_entry_lines jel ON jel.account_id = a.id
+            LEFT JOIN journal_entries je ON je.id = jel.journal_entry_id AND je.is_posted = 1
+            WHERE a.account_type = 'ASSET' AND a.is_active = 1
+            GROUP BY a.id
+            HAVING amount != 0
+            ORDER BY a.account_code`);
+            
+            const liabilities = await querySQL(`SELECT a.account_code, a.account_name,
+                   COALESCE(SUM(jel.credit - jel.debit), 0) as amount
+            FROM accounts a
+            LEFT JOIN journal_entry_lines jel ON jel.account_id = a.id
+            LEFT JOIN journal_entries je ON je.id = jel.journal_entry_id AND je.is_posted = 1
+            WHERE a.account_type = 'LIABILITY' AND a.is_active = 1
+            GROUP BY a.id
+            HAVING amount != 0
+            ORDER BY a.account_code`);
+            
+            const equity = await querySQL(`SELECT a.account_code, a.account_name,
+                   COALESCE(SUM(jel.credit - jel.debit), 0) as amount
+            FROM accounts a
+            LEFT JOIN journal_entry_lines jel ON jel.account_id = a.id
+            LEFT JOIN journal_entries je ON je.id = jel.journal_entry_id AND je.is_posted = 1
+            WHERE a.account_type = 'EQUITY' AND a.is_active = 1
+            GROUP BY a.id
+            HAVING amount != 0
+            ORDER BY a.account_code`);
+            
+            const totalAssets = assets.reduce((sum, a) => sum + (a.amount || 0), 0);
+            const totalLiabilities = liabilities.reduce((sum, l) => sum + (l.amount || 0), 0);
+            const totalEquity = equity.reduce((sum, e) => sum + (e.amount || 0), 0);
+            
+            return {
+                title: "Balance Sheet",
+                period_label: "As at " + new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+                generated_at: new Date().toISOString(),
+                assets: { items: assets, total: totalAssets },
+                liabilities: { items: liabilities, total: totalLiabilities },
+                equity: { items: equity, total: totalEquity },
+                total_liabilities_and_equity: totalLiabilities + totalEquity,
+                is_balanced: Math.abs(totalAssets - (totalLiabilities + totalEquity)) < 0.01
+            };
+        }
+
+        // ============================================================
+        // CASH BOOK DATA LOADER
+        // ============================================================
+        async function loadCashBookData(dateFrom, dateTo) {
+            const entries = await querySQL(`SELECT je.voucher_number, je.entry_date, je.description,
+                   a.account_name, jel.debit, jel.credit, jel.id as line_id
+            FROM journal_entries je
+            JOIN journal_entry_lines jel ON jel.journal_entry_id = je.id
+            JOIN accounts a ON a.id = jel.account_id
+            WHERE je.is_posted = 1 
+            AND (a.account_code = '1000' OR a.account_code = '1010')
+            AND je.entry_date >= '${dateFrom}' AND je.entry_date <= '${dateTo}'
+            ORDER BY je.entry_date, je.voucher_number`);
+            
+            let openingBalance = 0;
+            let totalDebit = 0;
+            let totalCredit = 0;
+            
+            entries.forEach(e => {
+                if (e.debit) totalDebit += e.debit;
+                if (e.credit) totalCredit += e.credit;
+            });
+            
+            return {
+                title: "Cash Book",
+                period_label: `${dateFrom} to ${dateTo}`,
+                generated_at: new Date().toISOString(),
+                opening_balance: openingBalance,
+                entries: entries,
+                total_debit: totalDebit,
+                total_credit: totalCredit,
+                closing_balance: openingBalance + totalDebit - totalCredit
+            };
         }
 
         // ============================================================
@@ -1274,6 +1670,50 @@
         }
 
         // ============================================================
+        // PARTY LEDGER DATA LOADER
+        // ============================================================
+        async function loadPartyLedgerData(partyId) {
+            const party = await querySQL(`SELECT * FROM parties WHERE id = '${partyId}'`);
+            if (!party || party.length === 0) {
+                throw new Error('Party not found');
+            }
+            const partyData = party[0];
+            
+            const entries = await querySQL(`SELECT 
+                je.voucher_number, je.entry_date, je.description, je.voucher_type,
+                jel.debit, jel.credit,
+                a.account_name, a.account_code
+            FROM journal_entries je
+            JOIN journal_entry_lines jel ON jel.journal_entry_id = je.id
+            JOIN accounts a ON a.id = jel.account_id
+            WHERE je.is_posted = 1 AND a.id = '${partyId}'
+            ORDER BY je.entry_date, je.voucher_number`);
+            
+            let totalDebit = 0;
+            let totalCredit = 0;
+            entries.forEach(e => {
+                if (e.debit) totalDebit += e.debit;
+                if (e.credit) totalCredit += e.credit;
+            });
+            
+            const balance = totalDebit - totalCredit;
+            let balanceType = 'Balanced';
+            if (balance > 0) balanceType = 'Receivable';
+            else if (balance < 0) balanceType = 'Payable';
+            
+            return {
+                title: "Party Ledger",
+                party: partyData,
+                is_customer: partyData.party_type === 'CUSTOMER',
+                entries: entries,
+                total_debit: totalDebit,
+                total_credit: totalCredit,
+                closing_balance: Math.abs(balance),
+                balance_type: balanceType
+            };
+        }
+
+        // ============================================================
         // PARTY LEDGER
         // ============================================================
         function loadPartyLedger() {
@@ -1294,7 +1734,7 @@
                 `;
                 document.getElementById('content').innerHTML = html;
 
-                window.loadPartyLedgerReport = function() {
+                window.loadPartyLedgerReport = async function() {
                     const partyId = document.getElementById('party-select').value;
                     if (!partyId) {
                         document.getElementById('pl-ledger-results').innerHTML = '<div class="error">Please select a party</div>';
@@ -1303,81 +1743,78 @@
 
                     document.getElementById('pl-ledger-results').innerHTML = '<div class="loading">Loading...</div>';
 
-                    fetch(`${API}/api/reports/party-ledger/${partyId}`)
-                        .then(res => res.json())
-                        .then(data => {
-                            if (!data.success) throw new Error(data.error);
-                            const d = data.data;
+                    try {
+                        const d = await loadPartyLedgerData(partyId);
 
-                            let balanceColor = '#6c757d';
-                            if (d.balance_type === 'Receivable') balanceColor = '#2ecc71';
-                            else if (d.balance_type === 'Payable') balanceColor = '#e74c3c';
-                            else if (d.balance_type === 'Credit Balance') balanceColor = '#f39c12';
-                            else if (d.balance_type === 'Debit Balance') balanceColor = '#e74c3c';
+                        let balanceColor = '#6c757d';
+                        if (d.balance_type === 'Receivable') balanceColor = '#2ecc71';
+                        else if (d.balance_type === 'Payable') balanceColor = '#e74c3c';
+                        else if (d.balance_type === 'Credit Balance') balanceColor = '#f39c12';
+                        else if (d.balance_type === 'Debit Balance') balanceColor = '#e74c3c';
 
-                            const partyTypeLabel = d.is_customer ? 'Customer' : 'Supplier';
+                        const partyTypeLabel = d.is_customer ? 'Customer' : 'Supplier';
 
-                            let html2 = `
-                                <div class="report-header">
-                                    <h2>${d.title}</h2>
-                                </div>
-                                <div style="padding:10px;background:#f8f9fa;border:1px solid #dee2e6;border-radius:4px;margin-bottom:12px;">
-                                    <span><b>Party:</b> ${d.party.name} (${d.party.code})</span>
-                                    <span style="margin-left:20px;"><b>Type:</b> <span style="color:${d.is_customer ? '#2ecc71' : '#e74c3c'};">${partyTypeLabel}</span></span>
-                                    <span style="margin-left:20px;"><b>Opening Balance:</b> Rs. ${Number(d.opening_balance).toLocaleString()}</span>
-                                </div>
-                                <table>
-                                    <thead>
-                                        <tr><th>Date</th><th>Voucher</th><th>Type</th><th style="text-align:left;">Description</th><th>Debit</th><th>Credit</th><th>Balance</th></tr>
-                                    </thead>
-                                    <tbody>
-                            `;
+                        let html2 = `
+                            <div class="report-header">
+                                <h2>${d.title}</h2>
+                            </div>
+                            <div style="padding:10px;background:#f8f9fa;border:1px solid #dee2e6;border-radius:4px;margin-bottom:12px;">
+                                <span><b>Party:</b> ${d.party.name} (${d.party.code})</span>
+                                <span style="margin-left:20px;"><b>Type:</b> <span style="color:${d.is_customer ? '#2ecc71' : '#e74c3c'};">${partyTypeLabel}</span></span>
+                                <span style="margin-left:20px;"><b>Opening Balance:</b> Rs. ${Number(d.opening_balance || 0).toLocaleString()}</span>
+                            </div>
+                            <table>
+                                <thead>
+                                    <tr><th>Date</th><th>Voucher</th><th>Type</th><th style="text-align:left;">Description</th><th>Debit</th><th>Credit</th><th>Balance</th></tr>
+                                </thead>
+                                <tbody>
+                        `;
 
-                            let totalDebit = 0, totalCredit = 0;
-                            for (const txn of d.transactions || []) {
-                                totalDebit += txn.debit;
-                                totalCredit += txn.credit;
-                                const balColor = txn.balance > 0.01 ? '#2ecc71' : (txn.balance < -0.01 ? '#e74c3c' : '#6c757d');
-                                const debitColor = txn.debit > 0 ? '#2ecc71' : '#6c757d';
-                                const creditColor = txn.credit > 0 ? '#e74c3c' : '#6c757d';
-
-                                html2 += `
-                                    <tr>
-                                        <td>${txn.date_formatted}</td>
-                                        <td>${txn.voucher_number}</td>
-                                        <td>${txn.voucher_type}</td>
-                                        <td class="text-left">${txn.description || '-'}</td>
-                                        <td class="amount" style="color:${debitColor};">${Number(txn.debit).toFixed(2)}</td>
-                                        <td class="amount" style="color:${creditColor};">${Number(txn.credit).toFixed(2)}</td>
-                                        <td class="amount" style="color:${balColor};">${Number(txn.balance).toFixed(2)}</td>
-                                    </tr>
-                                `;
-                            }
+                        let totalDebit = 0, totalCredit = 0, runningBalance = 0;
+                        for (const txn of d.entries || []) {
+                            totalDebit += (txn.debit || 0);
+                            totalCredit += (txn.credit || 0);
+                            runningBalance += (txn.debit || 0) - (txn.credit || 0);
+                            const balColor = runningBalance > 0.01 ? '#2ecc71' : (runningBalance < -0.01 ? '#e74c3c' : '#6c757d');
+                            const debitColor = (txn.debit || 0) > 0 ? '#2ecc71' : '#6c757d';
+                            const creditColor = (txn.credit || 0) > 0 ? '#e74c3c' : '#6c757d';
 
                             html2 += `
-                                    <tr class="total-row">
-                                        <td colspan="4"><b>TOTALS</b></td>
-                                        <td class="amount"><b>${Number(totalDebit).toFixed(2)}</b></td>
-                                        <td class="amount"><b>${Number(totalCredit).toFixed(2)}</b></td>
-                                        <td class="amount"><b>${Number(d.closing_balance).toFixed(2)}</b></td>
-                                    </tr>
-                                </tbody></table>
-                                <div style="padding:12px;background:#f8f9fa;border:1px solid ${balanceColor};border-radius:4px;margin-top:12px;text-align:center;font-weight:600;color:${balanceColor};">
-                                    Closing Balance: Rs. ${Number(d.closing_balance).toLocaleString()} (${d.balance_label})
-                                </div>
-                                <div class="grand-total-box">
-                                    <span>Total Debits: Rs. ${Number(totalDebit).toLocaleString()}</span>
-                                    <span>Total Credits: Rs. ${Number(totalCredit).toLocaleString()}</span>
-                                    <span>Net Movement: Rs. ${Number(totalDebit - totalCredit).toLocaleString()}</span>
-                                </div>
-                                <div class="report-footer">Generated: ${new Date().toLocaleString()}</div>
+                                <tr>
+                                    <td>${txn.entry_date || '-'}</td>
+                                    <td>${txn.voucher_number || '-'}</td>
+                                    <td>${txn.voucher_type || '-'}</td>
+                                    <td class="text-left">${txn.description || '-'}</td>
+                                    <td class="amount" style="color:${debitColor};">${Number(txn.debit || 0).toFixed(2)}</td>
+                                    <td class="amount" style="color:${creditColor};">${Number(txn.credit || 0).toFixed(2)}</td>
+                                    <td class="amount" style="color:${balColor};">${Number(runningBalance).toFixed(2)}</td>
+                                </tr>
                             `;
+                        }
 
-                            document.getElementById('pl-ledger-results').innerHTML = html2;
-                        })
-                        .catch(err => {
-                            document.getElementById('pl-ledger-results').innerHTML = `<div class="error">Error: ${err.message}</div>`;
-                        });
+                        html2 += `
+                                <tr class="total-row">
+                                    <td colspan="4"><b>TOTALS</b></td>
+                                    <td class="amount"><b>${Number(totalDebit).toFixed(2)}</b></td>
+                                    <td class="amount"><b>${Number(totalCredit).toFixed(2)}</b></td>
+                                    <td class="amount"><b>${Number(d.closing_balance).toFixed(2)}</b></td>
+                                </tr>
+                            </tbody></table>
+                            <div style="padding:12px;background:#f8f9fa;border:1px solid ${balanceColor};border-radius:4px;margin-top:12px;text-align:center;font-weight:600;color:${balanceColor};">
+                                Closing Balance: Rs. ${Number(d.closing_balance).toLocaleString()} (${d.balance_type})
+                            </div>
+                            <div class="grand-total-box">
+                                <span>Total Debits: Rs. ${Number(totalDebit).toLocaleString()}</span>
+                                <span>Total Credits: Rs. ${Number(totalCredit).toLocaleString()}</span>
+                                <span>Net Movement: Rs. ${Number(totalDebit - totalCredit).toLocaleString()}</span>
+                            </div>
+                            <div class="report-footer">Generated: ${new Date().toLocaleString()}</div>
+                        `;
+
+                        document.getElementById('pl-ledger-results').innerHTML = html2;
+                    } catch (err) {
+                        document.getElementById('pl-ledger-results').innerHTML = `<div class="error">Error: ${err.message}</div>`;
+                    }
                 };
             }).catch(err => {
                 document.getElementById('content').innerHTML = `<div class="error">Error loading parties: ${err.message}</div>`;
