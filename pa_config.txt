@@ -1,0 +1,44 @@
+# PythonAnywhere Configuration Guide
+# ===================================
+
+# Your code is now configured for PythonAnywhere!
+# The REST API on port 443 (HTTPS) already works there.
+
+# SETUP STEPS:
+# 1. Go to https://www.pythonanywhere.com and create a free account
+# 2. Upload your files via Files tab or Git clone
+# 3. Create a virtualenv:
+#    - Go to "Web" tab
+#    - Click "Add a new web app"
+#    - Choose "Flask" -> Python 3.10
+#    - Or manually configure existing app
+
+# 4. Configure Web App:
+#    - Source code: /home/yourusername/mysite
+#    - Working directory: /home/yourusername/mysite
+#    - Virtualenv: /home/yourusername/.virtualenvs/yourvenv
+
+# 5. WSGI Configuration File:
+#    Edit /var/www/yourusername_pythonanywhere_com_wsgi.py:
+    
+import sys
+path = '/home/yourusername/mysite'
+if path not in sys.path:
+    sys.path.insert(0, path)
+
+from wsgi import application
+
+# 6. Install dependencies:
+#    pip install -r requirements.txt
+
+# 7. Reload your web app from the Web tab
+
+# IMPORTANT: Your app uses SQLite Cloud REST API (port 443)
+# which IS allowed on PythonAnywhere free tier!
+# No custom ports needed.
+
+# Free tier limitations:
+# - 1 web app
+# - Sleeping after inactivity (visitors see loading page)
+# - Limited CPU/daily resources
+# - pythonanywhere.com subdomain
