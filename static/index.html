@@ -45,7 +45,7 @@
             top: 0;
             left: 0;
             bottom: 0;
-            z-index: 100;
+            z-index: 1000;
             overflow-y: auto;
             transition: transform 0.3s ease;
         }
@@ -104,6 +104,50 @@
             flex: 1;
             padding: 24px 32px;
             max-width: calc(100% - 260px);
+            transition: margin-left 0.3s ease, max-width 0.3s ease;
+        }
+        .mobile-header {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: var(--sidebar-bg);
+            position: sticky;
+            top: 0;
+            z-index: 999;
+        }
+        .mobile-header h1 {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .menu-toggle {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .menu-toggle:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .overlay.active {
+            display: block;
+            opacity: 1;
         }
         .header {
             display: flex;
@@ -306,33 +350,13 @@
         
         @media (max-width: 768px) {
             .sidebar { 
-                width: 100%;
-                height: auto;
-                position: relative;
-                transform: none;
+                transform: translateX(-100%);
             }
-            .brand {
-                padding: 16px 20px;
-                font-size: 16px;
+            .sidebar.active {
+                transform: translateX(0);
             }
-            .nav {
+            .mobile-header {
                 display: flex;
-                flex-wrap: wrap;
-                padding: 12px 16px;
-                gap: 8px;
-            }
-            .nav .section-label {
-                width: 100%;
-                padding: 8px 0 4px;
-            }
-            .nav a {
-                flex: 0 0 auto;
-                padding: 8px 14px;
-                font-size: 13px;
-                margin: 0;
-            }
-            .footer {
-                display: none;
             }
             .main { 
                 margin-left: 0; 
@@ -425,6 +449,10 @@
             </nav>
 
             <main class="main">
+                <div class="mobile-header">
+                    <h1>ERP System</h1>
+                    <button class="menu-toggle" id="menuToggle">&#9776;</button>
+                </div>
                 <div class="header">
                     <h1 id="title">Dashboard</h1>
                     <span class="time" id="time">Loading...</span>
@@ -432,9 +460,21 @@
                 <div id="content"><div class="loading">Loading data from SQLite Cloud...</div></div>
             </main>
         </div>
+        <div class="overlay" id="overlay"></div>
 
         <script>
         const API = window.location.origin;
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.querySelector('.sidebar');
+        const overlay = document.getElementById('overlay');
+
+        function toggleMenu() {
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        }
+
+        menuToggle.addEventListener('click', toggleMenu);
+        overlay.addEventListener('click', toggleMenu);
 
         document.querySelectorAll('.nav a').forEach(link => {
             link.addEventListener('click', function(e) {
@@ -444,6 +484,9 @@
                 const titleText = this.textContent.trim();
                 document.getElementById('title').textContent = titleText;
                 loadPage(this.dataset.page);
+                if (window.innerWidth <= 768) {
+                    toggleMenu();
+                }
             });
         });
 
