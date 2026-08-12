@@ -54,7 +54,7 @@ The app uses these credentials (already configured in `docs/index.html`):
 ```javascript
 const SQLITE_CLOUD_CONFIG = {
     apiKey: "bmJZ0l1RTFCoxS0Au17c0iofzZmrDn2Db94v0YtV9Uw",
-    database: "cool-depot.sqlite",
+    database: "MainDatabase.sqlite",
     projectId: "cjja8z6pvz",
     apiUrl: "https://cjja8z6pvz.g4.sqlite.cloud/v2/weblite/sql"
 };

@@ -431,7 +431,8 @@
                 <div class="brand">ERP System</div>
                 <div class="nav">
                     <div class="section-label">Data</div>
-                    <a href="#" class="active" data-page="dashboard">Dashboard</a>
+                    <a href="#" class="active"
+                        data-page="dashboard">Dashboard</a>
                     <a href="#" data-page="parties">Parties</a>
                     <a href="#" data-page="items">Items</a>
                     <a href="#" data-page="sales">Sales</a>
@@ -457,7 +458,8 @@
                     <h1 id="title">Dashboard</h1>
                     <span class="time" id="time">Loading...</span>
                 </div>
-                <div id="content"><div class="loading">Loading data from SQLite Cloud...</div></div>
+                <div id="content"><div class="loading">Loading data from SQLite
+                        Cloud...</div></div>
             </main>
         </div>
         <div class="overlay" id="overlay"></div>
@@ -466,9 +468,10 @@
         // SQLite Cloud REST API Configuration - Direct browser access for GitHub Pages
         const SQLITE_CLOUD_CONFIG = {
             apiKey: "bmJZ0l1RTFCoxS0Au17c0iofzZmrDn2Db94v0YtV9Uw",
-            database: "cool-depot.sqlite",
+            database: "MainDatabase.sqlite",
             projectId: "cjja8z6pvz",
-            apiUrl: "https://cjja8z6pvz.g4.sqlite.cloud/v2/weblite/sql"
+            apiUrl: "https://cjja8z6pvz.g4.sqlite.cloud/v2/weblite/sql",
+            connectionString: "sqlitecloud://cjja8z6pvz.g4.sqlite.cloud:8860/MainDatabase.sqlite?apikey=bmJZ0l1RTFCoxS0Au17c0iofzZmrDn2Db94v0YtV9Uw"
         };
 
         // Direct SQL query function for GitHub Pages (no backend needed)
