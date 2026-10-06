@@ -1,0 +1,128 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0f1117;
+  --color-panel: #161922;
+  --color-elevated: #1e222d;
+  --color-card: #1a1d27;
+  --color-fg: #c5cee0;
+  --color-fg-muted: #8b93a7;
+  --color-fg-bright: #e8ecf4;
+  --color-maroon-900: #5c0017;
+  --color-maroon-800: #800020;
+  --color-maroon-600: #a0153e;
+  --color-maroon-500: #c70039;
+  --color-line: #3a4259;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-info: #3b82f6;
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  font-family: var(--font-sans);
+  color: var(--color-fg);
+  touch-action: manipulation;
+  background:
+    radial-gradient(1100px 700px at 85% -10%, rgba(128, 0, 32, 0.16), transparent 60%),
+    radial-gradient(900px 600px at -10% 110%, rgba(199, 0, 57, 0.08), transparent 55%),
+    var(--color-bg);
+  background-attachment: fixed;
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: rgba(160, 21, 62, 0.55);
+  color: var(--color-fg-bright);
+}
+
+/* Visible keyboard focus everywhere (replaces any outline-none need). */
+:focus-visible {
+  outline: 2px solid var(--color-maroon-500);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Numerals align in tables and KPIs. */
+.tnums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Glassmorphism card surface. */
+.glass {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+
+.glass-hover {
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.glass-hover:hover {
+  border-color: rgba(199, 0, 57, 0.45);
+  background: rgba(255, 255, 255, 0.055);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+/* Skeleton shimmer (opacity/transform only). */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.07),
+    transparent
+  );
+  animation: skeleton-sweep 1.6s ease-in-out infinite;
+}
+
+@keyframes skeleton-sweep {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Respect users who prefer reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Subtle dark scrollbars. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}

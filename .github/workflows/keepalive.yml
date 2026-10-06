@@ -10,8 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping SQLite Cloud to prevent auto-suspend
+        env:
+          SQLITECLOUD_API_KEY: ${{ secrets.SQLITECLOUD_API_KEY }}
+          SQLITECLOUD_URL: ${{ secrets.SQLITECLOUD_URL }}
+          SQLITECLOUD_DATABASE: ${{ secrets.SQLITECLOUD_DATABASE }}
         run: |
-          curl -s -X POST "https://cjja8z6pvz.g4.sqlite.cloud/v2/weblite/sql" \
-            -H "Authorization: Bearer bmJZ0l1RTFCoxS0Au17c0iofzZmrDn2Db94v0YtV9Uw" \
+          curl -s -X POST "$SQLITECLOUD_URL" \
+            -H "Authorization: Bearer $SQLITECLOUD_API_KEY" \
             -H "Content-Type: application/json" \
-            -d '{"sql":"SELECT 1","database":"MainDatabase.sqlite"}'
+            -d "{\"sql\":\"SELECT 1\",\"database\":\"$SQLITECLOUD_DATABASE\"}"
