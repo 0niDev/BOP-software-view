@@ -9,18 +9,31 @@ jobs:
   ping:
     runs-on: ubuntu-24.04
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install SQLite Cloud SDK
+        run: npm install @sqlitecloud/drivers
+
       - name: Ping SQLite Cloud
         env:
-          SQLITECLOUD_API_KEY: ${{ secrets.SQLITECLOUD_API_KEY }}
           SQLITECLOUD_URL: ${{ secrets.SQLITECLOUD_URL }}
-          SQLITECLOUD_DATABASE: ${{ secrets.SQLITECLOUD_DATABASE }}
         run: |
-          if [ -z "$SQLITECLOUD_URL" ] || [ -z "$SQLITECLOUD_API_KEY" ]; then
-            echo "::error::Secrets are missing!"
-            exit 1
-          fi
-
-          curl -g -i -X POST "$SQLITECLOUD_URL" \
-            -H "Authorization: Bearer $SQLITECLOUD_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{\"sql\":\"SELECT 1\",\"database\":\"$SQLITECLOUD_DATABASE\"}"
+          node -e "
+            const { Database } = require('@sqlitecloud/drivers');
+            const db = new Database(process.env.SQLITECLOUD_URL);
+            db.sql('SELECT 1;')
+              .then(() => {
+                console.log('Successfully pinged SQLite Cloud!');
+                process.exit(0);
+              })
+              .catch(err => {
+                console.error('Ping failed:', err);
+                process.exit(1);
+              });
+          "
