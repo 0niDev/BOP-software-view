@@ -15,7 +15,12 @@ jobs:
           SQLITECLOUD_URL: ${{ secrets.SQLITECLOUD_URL }}
           SQLITECLOUD_DATABASE: ${{ secrets.SQLITECLOUD_DATABASE }}
         run: |
-          curl -s -X POST "$SQLITECLOUD_URL" \
+          if [ -z "$SQLITECLOUD_URL" ] || [ -z "$SQLITECLOUD_API_KEY" ]; then
+            echo "::error::One or more secrets are missing in Repository Secrets!"
+            exit 1
+          fi
+
+          curl -i -X POST "$SQLITECLOUD_URL" \
             -H "Authorization: Bearer $SQLITECLOUD_API_KEY" \
             -H "Content-Type: application/json" \
             -d "{\"sql\":\"SELECT 1\",\"database\":\"$SQLITECLOUD_DATABASE\"}"
