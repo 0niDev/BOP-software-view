@@ -49,10 +49,12 @@ export default function ItemsPage() {
     })
   }, [allRows, search, typeFilter, lowStockOnly])
 
-  const totalValue = allRows.reduce((sum, row) => sum + row.stockValue, 0)
-  const lowStockCount = allRows.filter(isLowStock).length
-  const outOfStockCount = allRows.filter((row) => row.stock <= 0).length
-  const activeCount = allRows.filter((row) => row.isActive).length
+  const activeRows = allRows.filter((row) => row.isActive)
+  const totalValue = activeRows.reduce((sum, row) => sum + row.stockValue, 0)
+  const lowStockCount = activeRows.filter(isLowStock).length
+  const configuredMinimums = activeRows.filter((row) => row.minimumStock > 0).length
+  const outOfStockCount = activeRows.filter((row) => row.stock <= 0).length
+  const activeCount = activeRows.length
 
   const columns: Column<ItemRow>[] = [
     {
@@ -218,7 +220,7 @@ export default function ItemsPage() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             <StatCard
               icon={Package}
               label={includeInactive ? 'Items' : 'Active items'}
@@ -237,8 +239,8 @@ export default function ItemsPage() {
               icon={TriangleAlert}
               label="Low stock"
               value={formatNumber(lowStockCount)}
-              hint="Below minimum stock"
-              tone={lowStockCount ? 'amber' : 'ok'}
+              hint={configuredMinimums === 0 ? 'No minimum levels configured' : 'Below minimum stock'}
+              tone={lowStockCount ? 'amber' : configuredMinimums === 0 ? 'brand' : 'ok'}
             />
             <StatCard
               icon={Warehouse}
@@ -258,7 +260,7 @@ export default function ItemsPage() {
                   value={search}
                   onChange={setSearch}
                   placeholder="Search item, code or category…"
-                  className="w-[220px]"
+                  className="w-full sm:w-[220px]"
                 />
                 <select
                   value={typeFilter}

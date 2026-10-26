@@ -6,16 +6,22 @@ import { EmptyState } from '../ui/States'
 export default function LowStockTable({
   rows,
   totalItems,
+  minimumConfigured,
 }: {
   rows: LowStockItem[]
   totalItems: number
+  minimumConfigured: number
 }) {
   if (rows.length === 0) {
     return (
       <EmptyState
         icon={<TriangleAlert size={26} />}
         title="No low-stock items"
-        hint={`All ${totalItems} active items are at or above their minimum stock level.`}
+        hint={
+          minimumConfigured === 0
+            ? 'No minimum stock levels are configured for active items, so this check cannot flag low stock.'
+            : `All ${totalItems} active items are at or above their minimum stock level.`
+        }
       />
     )
   }

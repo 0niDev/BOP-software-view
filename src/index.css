@@ -288,6 +288,15 @@ button:disabled {
   color: var(--text);
 }
 
+/* Tighter horizontal padding gives mobile tables more usable width. */
+@media (max-width: 639px) {
+  .data-table thead th,
+  .data-table tbody td {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}
+
 /* Print-friendly financial reports. */
 @media print {
   @page {

@@ -40,7 +40,7 @@ export default function Card({
       } ${className}`}
     >
       {(title || action) && (
-        <header className={`flex items-start justify-between gap-3 ${compact ? 'mb-3' : 'mb-4'}`}>
+        <header className={`flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between ${compact ? 'mb-3' : 'mb-4'}`}>
           <div className="min-w-0">
             {title && (
               <h2
@@ -52,7 +52,11 @@ export default function Card({
             )}
             {subtitle && <p className="mt-1 text-xs font-medium text-muted">{subtitle}</p>}
           </div>
-          {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
+          {action && (
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
+              {action}
+            </div>
+          )}
         </header>
       )}
       <div className={bodyClassName}>{children}</div>

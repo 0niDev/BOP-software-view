@@ -228,7 +228,7 @@ export default function PartiesPage() {
       header: 'Debit',
       align: 'right',
       sortValue: (row) => row.debit,
-      render: (row) => <span className="num text-muted">{formatCurrency(row.debit)}</span>,
+      render: (row) => <span className="num whitespace-nowrap text-muted">{formatCurrency(row.debit)}</span>,
       hideBelow: 'md',
     },
     {
@@ -236,7 +236,7 @@ export default function PartiesPage() {
       header: 'Credit',
       align: 'right',
       sortValue: (row) => row.credit,
-      render: (row) => <span className="num text-muted">{formatCurrency(row.credit)}</span>,
+      render: (row) => <span className="num whitespace-nowrap text-muted">{formatCurrency(row.credit)}</span>,
       hideBelow: 'md',
     },
     {
@@ -245,9 +245,20 @@ export default function PartiesPage() {
       align: 'right',
       sortValue: (row) => row.balance,
       render: (row) => (
-        <span className={`num font-bold ${row.kind === 'Receivable' ? 'text-ok-ink' : row.kind === 'Payable' ? 'text-amber-ink' : 'text-muted'}`}>
-          {formatCurrency(row.balance)}
-        </span>
+        <div className="text-right">
+          <span
+            className={`num whitespace-nowrap font-bold ${
+              row.kind === 'Receivable'
+                ? 'text-ok-ink'
+                : row.kind === 'Payable'
+                  ? 'text-amber-ink'
+                  : 'text-muted'
+            }`}
+          >
+            {formatCurrency(row.balance)}
+          </span>
+          <span className="block text-[10px] font-semibold text-muted sm:hidden">{row.kind}</span>
+        </div>
       ),
     },
     {
@@ -256,6 +267,7 @@ export default function PartiesPage() {
       align: 'right',
       sortValue: (row) => row.kind,
       render: (row) => <StatusPill value={row.kind} tone={kindTone(row.kind)} />,
+      hideBelow: 'sm',
     },
   ]
 
@@ -313,7 +325,7 @@ export default function PartiesPage() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             <StatCard
               icon={Users}
               label="Active parties"
@@ -353,7 +365,7 @@ export default function PartiesPage() {
                   value={search}
                   onChange={setSearch}
                   placeholder="Search name, code or phone…"
-                  className="w-[210px]"
+                  className="w-full sm:w-[210px]"
                 />
                 <select
                   value={typeFilter}

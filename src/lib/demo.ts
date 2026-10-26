@@ -233,7 +233,7 @@ export function demoQuery<T>(sql: string): T[] {
     [/as cash[\s\S]*as bank[\s\S]*as receivable[\s\S]*as payable/i, [{ cash: 1_284_500, bank: 3_920_000, receivable: 1_239_500, payable: 860_000 }]],
     [/then jel\.credit else 0 end\), 0\) as revenue/i, [{ revenue: 2_450_000, expenses: 1_510_000 }]],
     [/\) as value/i, [{ value: 8_754_230 }]],
-    [/count\(\*\) as count from items where/i, [{ count: 128 }]],
+    [/count\(\*\) as count[\s\S]*from items where/i, [{ count: 128, configured: 96 }]],
     [/having current_stock < i\.minimum_stock/i, lowStock],
     [/date\(sb\.expiry_date\) <= date/i, expiring],
     [/with recursive months/i, trend],

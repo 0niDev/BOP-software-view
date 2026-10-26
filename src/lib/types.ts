@@ -96,6 +96,7 @@ export interface DashboardData {
     totalItems: number
     lowStockCount: number
     lowStockItems: LowStockItem[]
+    minimumConfigured: number
     expiringCount: number
     expiringItems: ExpiringItem[]
   }

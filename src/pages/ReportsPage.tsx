@@ -76,13 +76,15 @@ function ReportTable({
   rows,
   total,
   totalLabel = 'Total',
+  emptyTitle = 'No posted amounts in this period',
 }: {
   rows: { code: string; name: string; amount: number }[]
   total: number
   totalLabel?: string
+  emptyTitle?: string
 }) {
   if (rows.length === 0) {
-    return <EmptyState title="No posted amounts in this period" />
+    return <EmptyState title={emptyTitle} />
   }
   return (
     <div className="overflow-x-auto rounded-lg border border-line">
@@ -279,17 +281,32 @@ function BalanceSheetView({ data }: { data: BalanceSheetData }) {
 
       <section>
         <h3 className="mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-muted">Assets</h3>
-        <ReportTable rows={data.assets} total={data.totalAssets} totalLabel="Total assets" />
+        <ReportTable
+          rows={data.assets}
+          total={data.totalAssets}
+          totalLabel="Total assets"
+          emptyTitle="No asset balances as of this date"
+        />
       </section>
 
       <section>
         <h3 className="mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-muted">Liabilities</h3>
-        <ReportTable rows={data.liabilities} total={data.totalLiabilities} totalLabel="Total liabilities" />
+        <ReportTable
+          rows={data.liabilities}
+          total={data.totalLiabilities}
+          totalLabel="Total liabilities"
+          emptyTitle="No liability balances as of this date"
+        />
       </section>
 
       <section>
         <h3 className="mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-muted">Equity</h3>
-        <ReportTable rows={data.equity} total={data.totalEquity} totalLabel="Total equity" />
+        <ReportTable
+          rows={data.equity}
+          total={data.totalEquity}
+          totalLabel="Total equity"
+          emptyTitle="No equity balances as of this date"
+        />
       </section>
     </div>
   )

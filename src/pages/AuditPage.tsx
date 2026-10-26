@@ -165,7 +165,7 @@ export default function AuditPage() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             <StatCard
               icon={History}
               label="Entries"
@@ -205,7 +205,7 @@ export default function AuditPage() {
                   value={search}
                   onChange={setSearch}
                   placeholder="Search action, entity or user…"
-                  className="w-[230px]"
+                  className="w-full sm:w-[230px]"
                 />
                 <select
                   value={actionFilter}

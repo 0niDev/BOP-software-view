@@ -95,8 +95,10 @@ export async function fetchDashboard(): Promise<DashboardData> {
             AND a.account_code IN ('1200','1210','1220'))
        ) AS value`,
     ),
-    query<{ count: number }>(
-      `SELECT COUNT(*) AS count FROM items WHERE company_id = ${company} AND is_active = 1`,
+    query<{ count: number; configured: number }>(
+      `SELECT COUNT(*) AS count,
+              COALESCE(SUM(CASE WHEN minimum_stock > 0 THEN 1 ELSE 0 END), 0) AS configured
+       FROM items WHERE company_id = ${company} AND is_active = 1`,
     ),
     query<RecentTransaction>(
       `SELECT * FROM (
@@ -226,6 +228,8 @@ export async function fetchDashboard(): Promise<DashboardData> {
     quantityInStock: n(row.quantity_in_stock),
   }))
 
+  const minimumConfigured = n(itemCountRows[0]?.configured)
+
   const alerts: DashboardAlert[] = []
   for (const item of lowStockItems.slice(0, 5)) {
     alerts.push({
@@ -245,7 +249,10 @@ export async function fetchDashboard(): Promise<DashboardData> {
     alerts.push({
       type: 'success',
       title: 'All clear',
-      message: 'No low-stock or expiry alerts right now.',
+      message:
+        minimumConfigured === 0
+          ? 'No expiry alerts. No minimum stock levels are configured, so low-stock checks are skipped.'
+          : 'No low-stock or expiry alerts right now.',
     })
   }
 
@@ -306,6 +313,7 @@ export async function fetchDashboard(): Promise<DashboardData> {
       totalItems: n(itemCountRows[0]?.count),
       lowStockCount: lowStockItems.length,
       lowStockItems,
+      minimumConfigured,
       expiringCount: expiringItems.length,
       expiringItems,
     },

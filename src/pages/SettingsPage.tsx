@@ -144,7 +144,7 @@ export default function SettingsPage() {
                 value={search}
                 onChange={setSearch}
                 placeholder="Search settings or shortcuts…"
-                className="w-[240px]"
+                className="w-full sm:w-[240px]"
               />
             }
           >

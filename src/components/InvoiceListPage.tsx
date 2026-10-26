@@ -207,7 +207,7 @@ export default function InvoiceListPage({ kind }: { kind: InvoiceKind }) {
       header: isSales ? 'Customer' : 'Supplier',
       sortValue: (row) => row.partyName,
       render: (row) => (
-        <div className="min-w-0">
+        <div className="min-w-0 max-w-[160px] sm:max-w-none">
           <p className="truncate text-[13px] font-semibold text-ink" title={row.partyName}>
             {row.partyName}
           </p>
@@ -234,14 +234,27 @@ export default function InvoiceListPage({ kind }: { kind: InvoiceKind }) {
       header: 'Total',
       align: 'right',
       sortValue: (row) => row.totalAmount,
-      render: (row) => <span className="num font-semibold text-ink">{formatCurrency(row.totalAmount)}</span>,
+      render: (row) => (
+        <div className="text-right">
+          <span className="num whitespace-nowrap font-semibold text-ink">
+            {formatCurrency(row.totalAmount)}
+          </span>
+          <span
+            className={`block text-[10px] font-semibold sm:hidden ${
+              row.balance > 0.01 ? 'text-amber-ink' : 'text-muted'
+            }`}
+          >
+            {row.balance > 0.01 ? `${formatCurrency(row.balance)} due` : 'Settled'}
+          </span>
+        </div>
+      ),
     },
     {
       key: 'paid',
       header: 'Paid',
       align: 'right',
       sortValue: (row) => row.paidAmount,
-      render: (row) => <span className="num text-muted">{formatCurrency(row.paidAmount)}</span>,
+      render: (row) => <span className="num whitespace-nowrap text-muted">{formatCurrency(row.paidAmount)}</span>,
       hideBelow: 'md',
     },
     {
@@ -254,6 +267,7 @@ export default function InvoiceListPage({ kind }: { kind: InvoiceKind }) {
           {formatCurrency(row.balance)}
         </span>
       ),
+      hideBelow: 'sm',
     },
     {
       key: 'status',
@@ -261,6 +275,7 @@ export default function InvoiceListPage({ kind }: { kind: InvoiceKind }) {
       align: 'right',
       sortValue: (row) => row.status,
       render: (row) => <StatusPill value={row.status} />,
+      hideBelow: 'sm',
     },
   ]
 
@@ -321,7 +336,7 @@ export default function InvoiceListPage({ kind }: { kind: InvoiceKind }) {
         />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             <StatCard
               icon={FileText}
               label="Invoices"
@@ -361,7 +376,7 @@ export default function InvoiceListPage({ kind }: { kind: InvoiceKind }) {
                   value={search}
                   onChange={setSearch}
                   placeholder="Search invoice or party…"
-                  className="w-[190px]"
+                  className="w-full sm:w-[190px]"
                 />
                 <select
                   value={status}

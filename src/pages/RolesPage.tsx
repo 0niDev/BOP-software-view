@@ -61,7 +61,7 @@ export default function RolesPage() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             <StatCard
               icon={ShieldCheck}
               label="Roles"
@@ -100,7 +100,7 @@ export default function RolesPage() {
                 value={search}
                 onChange={setSearch}
                 placeholder="Search role or permission…"
-                className="w-[240px]"
+                className="w-full sm:w-[240px]"
               />
             }
           >

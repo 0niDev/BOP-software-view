@@ -156,7 +156,7 @@ export default function UsersPage() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             <StatCard
               icon={Users}
               label="Total users"
@@ -196,7 +196,7 @@ export default function UsersPage() {
                   value={search}
                   onChange={setSearch}
                   placeholder="Search name, username or email…"
-                  className="w-[220px]"
+                  className="w-full sm:w-[220px]"
                 />
                 <select
                   value={roleFilter}

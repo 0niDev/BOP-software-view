@@ -73,6 +73,8 @@ export default function DashboardPage() {
     ? (data.profitLoss.profit / data.profitLoss.revenue) * 100
     : null
   const liquidity = data.balances.cash + data.balances.bank
+  const amountHint = (value: number, fallback: string): string =>
+    Math.abs(value) >= 10_000 ? formatCurrency(value) : fallback
   const activeAlerts = data.alerts.filter((alert) => alert.type !== 'success')
 
   const todayLine = `${formatNumber(data.today.salesCount)} sale${
@@ -98,13 +100,13 @@ export default function DashboardPage() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard
           icon={TrendingUp}
           label="Revenue this month"
           value={formatCompact(data.profitLoss.revenue)}
-          hint={formatCurrency(data.profitLoss.revenue)}
-          badge={<DeltaPill change={revenueChange} label="MoM" />}
+          hint={amountHint(data.profitLoss.revenue, 'No posted revenue this month')}
+          badge={revenueChange == null ? undefined : <DeltaPill change={revenueChange} label="MoM" />}
           tone="ok"
           delay={0}
         />
@@ -112,8 +114,8 @@ export default function DashboardPage() {
           icon={TrendingDown}
           label="Expenses this month"
           value={formatCompact(data.profitLoss.expenses)}
-          hint={formatCurrency(data.profitLoss.expenses)}
-          badge={<DeltaPill change={expenseChange} label="MoM" invert />}
+          hint={amountHint(data.profitLoss.expenses, 'No posted expenses this month')}
+          badge={expenseChange == null ? undefined : <DeltaPill change={expenseChange} label="MoM" invert />}
           tone="amber"
           delay={0.03}
         />
@@ -121,11 +123,13 @@ export default function DashboardPage() {
           icon={Coins}
           label={data.profitLoss.isProfit ? 'Net profit' : 'Net loss'}
           value={formatCompact(data.profitLoss.profit)}
-          hint={formatCurrency(data.profitLoss.profit)}
+          hint={amountHint(data.profitLoss.profit, 'Revenue minus expenses')}
           badge={
-            <StatusPill tone={data.profitLoss.isProfit ? 'ok' : 'danger'}>
-              {margin == null ? '—' : `${formatPercent(margin)} margin`}
-            </StatusPill>
+            margin == null ? undefined : (
+              <StatusPill tone={data.profitLoss.isProfit ? 'ok' : 'danger'}>
+                {`${formatPercent(margin)} margin`}
+              </StatusPill>
+            )
           }
           tone={data.profitLoss.isProfit ? 'ok' : 'danger'}
           delay={0.06}
@@ -254,9 +258,29 @@ export default function DashboardPage() {
           subtitle={`${formatNumber(data.inventory.lowStockCount)} of ${formatNumber(
             data.inventory.totalItems,
           )} active items`}
-          action={<StatusPill tone={data.inventory.lowStockCount ? 'warn' : 'ok'}>{data.inventory.lowStockCount ? 'Review' : 'OK'}</StatusPill>}
+          action={
+            <StatusPill
+              tone={
+                data.inventory.lowStockCount
+                  ? 'warn'
+                  : data.inventory.minimumConfigured === 0
+                    ? 'neutral'
+                    : 'ok'
+              }
+            >
+              {data.inventory.lowStockCount
+                ? 'Review'
+                : data.inventory.minimumConfigured === 0
+                  ? 'Not set'
+                  : 'OK'}
+            </StatusPill>
+          }
         >
-          <LowStockTable rows={data.inventory.lowStockItems} totalItems={data.inventory.totalItems} />
+          <LowStockTable
+            rows={data.inventory.lowStockItems}
+            totalItems={data.inventory.totalItems}
+            minimumConfigured={data.inventory.minimumConfigured}
+          />
         </Card>
         <Card
           title="Expiring soon"
