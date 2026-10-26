@@ -1,18 +1,46 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en" data-theme="light" data-theme-source="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0F1117" />
-    <meta name="color-scheme" content="dark" />
-    <meta name="description" content="BOP Nutraceuticals ERP executive dashboard — sales, purchases, ledgers, inventory and financial reports." />
-    <title>BOP Software — Executive Dashboard</title>
+    <meta name="theme-color" content="#070607" />
+    <meta name="color-scheme" content="dark light" />
+    <meta
+      name="description"
+      content="BOP Nutraceuticals ERP — read-only executive view of sales, purchases, customers, inventory and financial reports."
+    />
+    <title>BOP Nutraceuticals — Executive View</title>
     <!-- preconnect to the SQLite Cloud host is injected from VITE_SQLITECLOUD_URL in src/main.tsx -->
     <link rel="icon" type="image/svg+xml" href="/BOP-software-view/favicon.svg" />
-    <script type="module" crossorigin src="/BOP-software-view/assets/index-CnP37h1i.js"></script>
-    <link rel="stylesheet" crossorigin href="/BOP-software-view/assets/index-BqddezV7.css">
+    <script>
+      // Apply the saved theme before first paint. The ERP setting (light) is the
+      // fallback; src/components/Layout.tsx adopts it on the first visit.
+      ;(() => {
+        try {
+          const stored = localStorage.getItem('bop-view.theme')
+          const mode = stored === 'dark' || stored === 'light' || stored === 'system' ? stored : 'light'
+          const resolved =
+            mode === 'light'
+              ? 'light'
+              : mode === 'dark'
+                ? 'dark'
+                : window.matchMedia('(prefers-color-scheme: light)').matches
+                  ? 'light'
+                  : 'dark'
+          const root = document.documentElement
+          root.dataset.theme = resolved
+          root.dataset.themeSource = mode
+          root.style.colorScheme = resolved
+          root.classList.toggle('dark', resolved === 'dark')
+        } catch {
+          /* localStorage can be unavailable; keep the light default */
+        }
+      })()
+    </script>
+    <script type="module" crossorigin src="/BOP-software-view/assets/index-D0klQ4UH.js"></script>
+    <link rel="stylesheet" crossorigin href="/BOP-software-view/assets/index-D3XImsjo.css">
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"></div>
   </body>
 </html>
