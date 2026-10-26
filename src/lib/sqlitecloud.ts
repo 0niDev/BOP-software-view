@@ -2,13 +2,10 @@
  * Minimal typed client for the SQLite Cloud Weblite HTTP/JSON REST API.
  * Docs: https://docs.sqlitecloud.io/docs/weblite
  *
- * Replaces the old direct-socket connection (and the dead localhost:3000
- * proxy): every query is an HTTPS POST carrying { sql, database } with a
- * Bearer token, so it works from any static host including GitHub Pages.
- *
+ * Every query is an HTTPS POST carrying { sql, database } with a Bearer token,
+ * so the read-only view works from any static host including GitHub Pages.
  * Credentials come exclusively from import.meta.env (see .env.example).
- * NEVER commit the real key — use .env.local locally and GitHub Actions
- * secrets in CI. In dev, Vite serves .env.local automatically.
+ * NEVER commit the real key — use .env.local locally and repository secrets in CI.
  */
 import type { Row } from './types'
 import { demoQuery } from './demo'
@@ -43,11 +40,14 @@ export class SqlQueryError extends Error {
   }
 }
 
+interface WebliteError {
+  error?: string | { status?: number; title?: string; detail?: string }
+}
+
 /**
  * Run a read-only SQL statement and return its rows as objects.
- * This app never mutates data; keys are treated as opaque values, and all
- * queries here are built from constants or fully-quoted parameters — never
- * raw user input.
+ * This app never mutates data; every query is built from constants or
+ * fully-quoted parameters — never raw user input.
  */
 export async function query<T extends object = Row>(sql: string): Promise<T[]> {
   // Demo mode: serve deterministic sample data without network or credentials.
@@ -67,8 +67,10 @@ export async function query<T extends object = Row>(sql: string): Promise<T[]> {
   if (!res.ok) {
     let detail = `HTTP ${res.status}`
     try {
-      const body = (await res.json()) as { error?: string }
-      if (body?.error) detail = body.error
+      const body = (await res.json()) as WebliteError
+      if (typeof body.error === 'string') detail = body.error
+      else if (body.error?.detail) detail = body.error.detail
+      else if (body.error?.title) detail = body.error.title
     } catch {
       /* keep the status-code message */
     }
@@ -82,9 +84,22 @@ export async function query<T extends object = Row>(sql: string): Promise<T[]> {
   return payload.data as T[]
 }
 
+/** Run a read-only query expected to return at most one row. */
+export async function queryOne<T extends object = Row>(sql: string): Promise<T | null> {
+  const rows = await query<T>(sql)
+  return rows[0] ?? null
+}
+
 /** Quote a value for safe interpolation into an IN (…) list or similar. */
 export function quoteSql(value: string | number): string {
-  return typeof value === 'number'
-    ? String(value)
-    : `'${value.replaceAll("'", "''")}'`
+  return typeof value === 'number' ? String(value) : `'${value.replaceAll("'", "''")}'`
+}
+
+/** Quote a numeric id only when it is a finite integer (guards string input). */
+export function safeId(value: number | string): number {
+  const parsed = typeof value === 'number' ? value : Number(value)
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error('Invalid id')
+  }
+  return parsed
 }

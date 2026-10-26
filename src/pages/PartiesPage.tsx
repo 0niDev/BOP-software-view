@@ -1,12 +1,37 @@
-/** Parties: AR/AP summary + party ledger viewer. */
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight } from 'lucide-react'
-import { fetchPartyLedger, fetchPartyOptions, fetchPartiesSummary } from '../lib/queries/parties'
-import { formatCurrency, formatDate, formatNumber } from '../lib/format'
-import { GlassCard, ErrorState, EmptyState, TableSkeleton } from '../components/ui'
-import { StatCard } from '../components/StatCard'
-import { Users, HandCoins } from 'lucide-react'
+import { Download, Scale, TrendingDown, TrendingUp, Users } from 'lucide-react'
+import { fetchPartiesSummary, fetchPartyLedger } from '../lib/queries/parties'
+import { formatCurrency, formatDate, formatNumber, titleCase } from '../lib/format'
+import { downloadCsv } from '../lib/download'
+import type { PartySummary } from '../lib/types'
+import Card from '../components/ui/Card'
+import DataTable, { type Column } from '../components/ui/DataTable'
+import Drawer from '../components/ui/Drawer'
+import PageHeader from '../components/ui/PageHeader'
+import StatCard from '../components/ui/StatCard'
+import StatusPill from '../components/ui/StatusPill'
+import { EmptyState, ErrorState, Skeleton } from '../components/ui/States'
+import FilterBox from '../components/FilterBox'
+
+const TYPE_FILTERS = [
+  { value: '', label: 'All parties' },
+  { value: 'CUSTOMER', label: 'Customers' },
+  { value: 'SUPPLIER', label: 'Suppliers' },
+  { value: 'RECEIVABLE', label: 'With receivable' },
+  { value: 'PAYABLE', label: 'With payable' },
+] as const
+
+type TypeFilter = (typeof TYPE_FILTERS)[number]['value']
+
+function kindTone(kind: PartySummary['kind']): 'ok' | 'warn' | 'neutral' {
+  return kind === 'Receivable' ? 'ok' : kind === 'Payable' ? 'warn' : 'neutral'
+}
+
+function PartyTypePill({ value }: { value: string }) {
+  const tone = value === 'CUSTOMER' ? 'info' : value === 'SUPPLIER' ? 'warn' : 'brand'
+  return <StatusPill value={titleCase(value)} tone={tone} />
+}
 
 function LedgerView({ partyId }: { partyId: number }) {
   const ledger = useQuery({
@@ -14,7 +39,14 @@ function LedgerView({ partyId }: { partyId: number }) {
     queryFn: () => fetchPartyLedger(partyId),
   })
 
-  if (ledger.isLoading) return <TableSkeleton rows={6} cols={6} />
+  if (ledger.isLoading) {
+    return (
+      <div className="flex flex-col gap-3">
+        <Skeleton className="h-20 rounded-lg" />
+        <Skeleton className="h-48 rounded-lg" />
+      </div>
+    )
+  }
   if (ledger.isError) {
     return (
       <ErrorState
@@ -23,82 +55,256 @@ function LedgerView({ partyId }: { partyId: number }) {
       />
     )
   }
+  if (!ledger.data) return null
+
   const data = ledger.data
-  if (!data || data.entries.length === 0) {
-    return <EmptyState message="No posted entries for this party yet." />
-  }
+  const closingTone =
+    Math.abs(data.closingBalance) < 0.01
+      ? 'text-ink'
+      : data.isCustomer
+        ? data.closingBalance > 0
+          ? 'text-ok-ink'
+          : 'text-amber-ink'
+        : data.closingBalance > 0
+          ? 'text-amber-ink'
+          : 'text-ok-ink'
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-line bg-surface-2 p-4">
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-fg-bright">
-            {data.party.code} — {data.party.name}
+          <p className="text-sm font-bold text-ink">{data.party.name}</p>
+          <p className="text-[11px] text-muted">
+            {data.party.code} · {titleCase(data.party.partyType)}
           </p>
-          <p className="text-xs text-fg-muted">{data.party.partyType}</p>
         </div>
         <div className="text-right">
-          <p className="text-xs uppercase tracking-wider text-fg-muted">Closing Balance</p>
-          <p className={`tnums text-lg font-semibold ${data.closingBalance >= 0 ? 'text-success' : 'text-danger'}`}>
-            {formatCurrency(Math.abs(data.closingBalance))}
-          </p>
-          <p className="text-xs text-fg-muted">{data.balanceLabel}</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted">Closing balance</p>
+          <p className={`num text-lg font-extrabold ${closingTone}`}>{formatCurrency(data.closingBalance)}</p>
+          <p className="text-[10px] text-muted">{data.balanceLabel}</p>
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="tnums w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs uppercase tracking-wider text-fg-muted">
-              <th scope="col" className="py-2 pr-4 font-medium">Date</th>
-              <th scope="col" className="py-2 pr-4 font-medium">Voucher</th>
-              <th scope="col" className="py-2 pr-4 font-medium">Description</th>
-              <th scope="col" className="py-2 pr-4 text-right font-medium">Debit</th>
-              <th scope="col" className="py-2 pr-4 text-right font-medium">Credit</th>
-              <th scope="col" className="py-2 text-right font-medium">Balance</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5">
-            {data.entries.map((e, i) => (
-              <tr key={`${e.voucherNumber}-${i}`} className="text-fg">
-                <td className="py-2.5 pr-4 whitespace-nowrap">{formatDate(e.date)}</td>
-                <td className="py-2.5 pr-4 font-medium text-fg-bright">{e.voucherNumber}</td>
-                <td className="max-w-[220px] truncate py-2.5 pr-4" title={e.description}>{e.description}</td>
-                <td className="py-2.5 pr-4 text-right text-fg">{e.debit ? formatCurrency(e.debit) : '—'}</td>
-                <td className="py-2.5 pr-4 text-right text-fg">{e.credit ? formatCurrency(e.credit) : '—'}</td>
-                <td className={`py-2.5 text-right font-medium ${e.running >= 0 ? 'text-success' : 'text-danger'}`}>
-                  {formatCurrency(Math.abs(e.running))}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="rounded-lg border border-line p-3">
+          <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted">Opening</p>
+          <p className="num mt-1 text-[13px] font-bold text-ink">{formatCurrency(data.openingBalance)}</p>
+        </div>
+        <div className="rounded-lg border border-line p-3">
+          <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted">Debit</p>
+          <p className="num mt-1 text-[13px] font-bold text-ink">{formatCurrency(data.totalDebit)}</p>
+        </div>
+        <div className="rounded-lg border border-line p-3">
+          <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted">Credit</p>
+          <p className="num mt-1 text-[13px] font-bold text-ink">{formatCurrency(data.totalCredit)}</p>
+        </div>
+      </div>
+
+      {data.entries.length === 0 ? (
+        <EmptyState
+          title="No ledger entries"
+          hint="This party has an opening balance only — no invoices or payments have posted to the ledger yet."
+        />
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-line">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Voucher</th>
+                <th scope="col">Description</th>
+                <th scope="col" className="text-right">Debit</th>
+                <th scope="col" className="text-right">Credit</th>
+                <th scope="col" className="text-right">Running</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.entries.map((entry, index) => (
+                <tr key={`${entry.voucherNumber}-${index}`}>
+                  <td className="num whitespace-nowrap text-muted">{formatDate(entry.date)}</td>
+                  <td>
+                    <p className="text-[11px] font-bold text-ink">{entry.voucherNumber}</p>
+                    <p className="text-[10px] text-muted">{entry.voucherType}</p>
+                  </td>
+                  <td className="max-w-[220px]">
+                    <p className="truncate text-[12px] text-ink" title={entry.description}>
+                      {entry.description}
+                    </p>
+                    <p className="text-[10px] text-muted">{entry.accountName}</p>
+                  </td>
+                  <td className="num text-right text-muted">
+                    {entry.debit ? formatCurrency(entry.debit) : '—'}
+                  </td>
+                  <td className="num text-right text-muted">
+                    {entry.credit ? formatCurrency(entry.credit) : '—'}
+                  </td>
+                  <td className="num text-right font-bold text-ink">{formatCurrency(entry.running)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan={3} className="py-2.5 text-right text-[11px] font-bold uppercase tracking-[0.08em] text-muted">
+                  Period totals
+                </td>
+                <td className="num py-2.5 text-right text-[12px] font-bold text-ink">
+                  {formatCurrency(data.totalDebit)}
+                </td>
+                <td className="num py-2.5 text-right text-[12px] font-bold text-ink">
+                  {formatCurrency(data.totalCredit)}
+                </td>
+                <td className="num py-2.5 text-right text-[12px] font-extrabold text-ink">
+                  {formatCurrency(data.closingBalance)}
                 </td>
               </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="border-t border-white/10 text-fg-bright">
-              <td colSpan={3} className="py-2.5 pr-4 text-sm font-semibold">Totals</td>
-              <td className="py-2.5 pr-4 text-right text-sm font-semibold">{formatCurrency(data.totalDebit)}</td>
-              <td className="py-2.5 pr-4 text-right text-sm font-semibold">{formatCurrency(data.totalCredit)}</td>
-              <td className="py-2.5 text-right text-sm font-semibold">{formatCurrency(Math.abs(data.closingBalance))}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+            </tfoot>
+          </table>
+        </div>
+      )}
+
+      <p className="text-[11px] leading-relaxed text-muted">
+        Customer balances are debit − credit. Supplier balances are credit − debit. OPENING vouchers are
+        shown as the opening balance and excluded from period entries to avoid double counting.
+      </p>
     </div>
   )
 }
 
 export default function PartiesPage() {
-  const [searchParams, setSearchParams] = useSearchParams()
-  const selectedId = searchParams.get('party')
+  const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('')
+  const [selected, setSelected] = useState<PartySummary | null>(null)
 
-  const summary = useQuery({ queryKey: ['parties-summary'], queryFn: fetchPartiesSummary })
-  const options = useQuery({ queryKey: ['party-options'], queryFn: fetchPartyOptions })
+  const summary = useQuery({
+    queryKey: ['parties-summary'],
+    queryFn: fetchPartiesSummary,
+  })
+
+  const rows = useMemo(() => {
+    const needle = search.trim().toLowerCase()
+    return (summary.data?.parties ?? []).filter((party) => {
+      if (typeFilter === 'CUSTOMER' && !(party.partyType === 'CUSTOMER' || party.partyType === 'BOTH')) return false
+      if (typeFilter === 'SUPPLIER' && !(party.partyType === 'SUPPLIER' || party.partyType === 'BOTH')) return false
+      if (typeFilter === 'RECEIVABLE' && party.kind !== 'Receivable') return false
+      if (typeFilter === 'PAYABLE' && party.kind !== 'Payable') return false
+      if (!needle) return true
+      return (
+        party.name.toLowerCase().includes(needle) ||
+        party.code.toLowerCase().includes(needle) ||
+        (party.phone ?? '').toLowerCase().includes(needle)
+      )
+    })
+  }, [summary.data, search, typeFilter])
+
+  const columns: Column<PartySummary>[] = [
+    {
+      key: 'party',
+      header: 'Party',
+      sortValue: (row) => row.name,
+      render: (row) => (
+        <div className="min-w-0">
+          <p className="truncate text-[13px] font-bold text-ink" title={row.name}>
+            {row.name}
+          </p>
+          <p className="text-[10px] text-muted">{row.code}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'type',
+      header: 'Type',
+      sortValue: (row) => row.partyType,
+      render: (row) => <PartyTypePill value={row.partyType} />,
+      hideBelow: 'sm',
+    },
+    {
+      key: 'phone',
+      header: 'Phone',
+      render: (row) => <span className="text-[11px] text-muted">{row.phone ?? '—'}</span>,
+      hideBelow: 'lg',
+    },
+    {
+      key: 'debit',
+      header: 'Debit',
+      align: 'right',
+      sortValue: (row) => row.debit,
+      render: (row) => <span className="num text-muted">{formatCurrency(row.debit)}</span>,
+      hideBelow: 'md',
+    },
+    {
+      key: 'credit',
+      header: 'Credit',
+      align: 'right',
+      sortValue: (row) => row.credit,
+      render: (row) => <span className="num text-muted">{formatCurrency(row.credit)}</span>,
+      hideBelow: 'md',
+    },
+    {
+      key: 'balance',
+      header: 'Balance',
+      align: 'right',
+      sortValue: (row) => row.balance,
+      render: (row) => (
+        <span className={`num font-bold ${row.kind === 'Receivable' ? 'text-ok-ink' : row.kind === 'Payable' ? 'text-amber-ink' : 'text-muted'}`}>
+          {formatCurrency(row.balance)}
+        </span>
+      ),
+    },
+    {
+      key: 'kind',
+      header: 'Position',
+      align: 'right',
+      sortValue: (row) => row.kind,
+      render: (row) => <StatusPill value={row.kind} tone={kindTone(row.kind)} />,
+    },
+  ]
+
+  const stats = summary.data
+
+  const exportRows = (): void => {
+    downloadCsv(
+      'parties.csv',
+      rows.map((row) => ({
+        code: row.code,
+        name: row.name,
+        type: row.partyType,
+        phone: row.phone,
+        debit: row.debit,
+        credit: row.credit,
+        balance: row.balance,
+        position: row.kind,
+      })),
+      [
+        { key: 'code', label: 'Code' },
+        { key: 'name', label: 'Name' },
+        { key: 'type', label: 'Type' },
+        { key: 'phone', label: 'Phone' },
+        { key: 'debit', label: 'Debit' },
+        { key: 'credit', label: 'Credit' },
+        { key: 'balance', label: 'Balance' },
+        { key: 'position', label: 'Position' },
+      ],
+    )
+  }
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h2 className="text-xl font-semibold text-fg-bright">Parties</h2>
-        <p className="text-sm text-fg-muted">Receivables, payables and ledgers</p>
-      </header>
+    <div className="flex flex-col gap-5">
+      <PageHeader
+        eyebrow="Master data"
+        title="Customers & Suppliers"
+        subtitle="Journal-derived balances for every active party"
+        actions={
+          <button
+            type="button"
+            onClick={exportRows}
+            disabled={rows.length === 0}
+            className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-3 py-2 text-xs font-bold text-ink transition-colors hover:border-line-strong disabled:opacity-40"
+          >
+            <Download size={14} aria-hidden />
+            Export CSV
+          </button>
+        }
+      />
 
       {summary.isError ? (
         <ErrorState
@@ -106,97 +312,93 @@ export default function PartiesPage() {
           onRetry={() => summary.refetch()}
         />
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <StatCard icon={ArrowLeft} label="Total Receivable" value={summary.isLoading ? 'Loading…' : formatCurrency(summary.data?.receivable)} sub={`${formatNumber(summary.data?.parties.filter((p) => p.balance > 0).length)} parties with a positive balance`} accent="success" />
-          <StatCard icon={ArrowRight} label="Total Payable" value={summary.isLoading ? 'Loading…' : formatCurrency(summary.data?.payable)} sub={`${formatNumber(summary.data?.parties.filter((p) => p.balance < 0).length)} parties with a negative balance`} accent="danger" />
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard
+              icon={Users}
+              label="Active parties"
+              value={formatNumber(stats?.parties.length ?? 0)}
+              hint="Customers, suppliers and both"
+              tone="brand"
+            />
+            <StatCard
+              icon={TrendingUp}
+              label="Receivable"
+              value={formatCurrency(stats?.receivable ?? 0)}
+              hint="Customers owe us"
+              tone="ok"
+            />
+            <StatCard
+              icon={TrendingDown}
+              label="Payable"
+              value={formatCurrency(stats?.payable ?? 0)}
+              hint="We owe suppliers"
+              tone="amber"
+            />
+            <StatCard
+              icon={Scale}
+              label="Net position"
+              value={formatCurrency((stats?.receivable ?? 0) - (stats?.payable ?? 0))}
+              hint="Receivable − payable"
+              tone="teal"
+            />
+          </div>
+
+          <Card
+            title="Party balances"
+            subtitle={`${formatNumber(rows.length)} of ${formatNumber(stats?.parties.length ?? 0)} parties`}
+            action={
+              <div className="flex flex-wrap items-end gap-2">
+                <FilterBox
+                  value={search}
+                  onChange={setSearch}
+                  placeholder="Search name, code or phone…"
+                  className="w-[210px]"
+                />
+                <select
+                  value={typeFilter}
+                  onChange={(event) => setTypeFilter(event.target.value as TypeFilter)}
+                  aria-label="Filter parties"
+                  className="rounded-lg border border-line bg-[var(--input-bg)] px-2.5 py-2 text-xs font-semibold text-ink focus:border-brand focus:outline-none"
+                >
+                  {TYPE_FILTERS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            }
+          >
+            <DataTable
+              columns={columns}
+              rows={rows}
+              rowKey={(row) => row.id}
+              loading={summary.isLoading}
+              initialSortKey="balance"
+              initialSortDir="desc"
+              pageSize={25}
+              onRowClick={(row) => setSelected(row)}
+              emptyTitle="No parties match these filters"
+              emptyHint="Clear the search or filter to see all parties."
+              caption="Customer and supplier balances"
+            />
+            <p className="mt-3 text-[11px] text-muted">
+              Click a row to open the full party ledger.
+            </p>
+          </Card>
+        </>
       )}
 
-      <GlassCard>
-        <div className="mb-4 flex flex-wrap items-end gap-4">
-          <div className="min-w-0">
-            <label htmlFor="party-select" className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-fg-muted">
-              Party
-            </label>
-            <select
-              id="party-select"
-              name="party"
-              value={selectedId ?? ''}
-              onChange={(e) => {
-                const value = e.target.value
-                if (value) setSearchParams({ party: value })
-                else setSearchParams({})
-              }}
-              className="w-64 max-w-full rounded-xl border border-white/10 bg-elevated px-3 py-2 text-sm text-fg-bright"
-            >
-              <option value="">Select a party…</option>
-              {(options.data ?? []).map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.code} — {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {selectedId && Number.isFinite(Number(selectedId)) ? (
-          <LedgerView partyId={Number(selectedId)} />
-        ) : (
-          <EmptyState message="Select a party to view its ledger." />
-        )}
-      </GlassCard>
-
-      <GlassCard>
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-fg-bright">
-          <Users aria-hidden="true" className="size-4" /> Party Balances
-        </h3>
-        {summary.isLoading ? (
-          <TableSkeleton rows={5} cols={4} />
-        ) : summary.isError ? null : !summary.data?.parties.length ? (
-          <EmptyState message="No party balances yet." />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="tnums w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase tracking-wider text-fg-muted">
-                  <th scope="col" className="py-2 pr-4 font-medium">Code</th>
-                  <th scope="col" className="py-2 pr-4 font-medium">Name</th>
-                  <th scope="col" className="py-2 pr-4 font-medium">Type</th>
-                  <th scope="col" className="py-2 pr-4 text-right font-medium">Debit</th>
-                  <th scope="col" className="py-2 pr-4 text-right font-medium">Credit</th>
-                  <th scope="col" className="py-2 text-right font-medium">Balance</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {summary.data.parties.map((p) => (
-                  <tr key={p.code} className="text-fg">
-                    <td className="py-2.5 pr-4">
-                      <Link
-                        to={`/parties?party=${p.id ?? ''}`}
-                        className="font-medium text-maroon-500 hover:text-maroon-600"
-                      >
-                        {p.code}
-                      </Link>
-                    </td>
-                    <td className="max-w-[220px] truncate py-2.5 pr-4 text-fg-bright" title={p.name}>{p.name}</td>
-                    <td className="py-2.5 pr-4">{p.partyType}</td>
-                    <td className="py-2.5 pr-4 text-right">{formatCurrency(p.debit)}</td>
-                    <td className="py-2.5 pr-4 text-right">{formatCurrency(p.credit)}</td>
-                    <td className={`py-2.5 text-right font-medium ${p.balance > 0 ? 'text-success' : p.balance < 0 ? 'text-danger' : 'text-fg-muted'}`}>
-                      {formatCurrency(Math.abs(p.balance))}
-                      <span className="sr-only"> {p.kind}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </GlassCard>
-
-      <p className="flex items-center gap-2 text-xs text-fg-muted">
-        <HandCoins aria-hidden="true" className="size-3.5" /> Balances are journal-derived; customers are receivable when debit &gt; credit.
-      </p>
+      <Drawer
+        open={selected != null}
+        onClose={() => setSelected(null)}
+        title={selected?.name ?? 'Party ledger'}
+        subtitle={selected ? `${selected.code} · ${titleCase(selected.partyType)}` : undefined}
+        width="wide"
+      >
+        {selected != null && <LedgerView partyId={selected.id} />}
+      </Drawer>
     </div>
   )
 }

@@ -1,78 +1,106 @@
 /**
- * Parties queries. The party ledger follows the desktop ERP convention
- * (reports/party_ledger_report.py): join on journal_entry_lines.party_id,
- * opening side = pre-period OPENING vouchers, running balance signed by
- * party type (customer: debit − credit; supplier: credit − debit).
+ * Parties (customers and suppliers), their journal-derived balances, and the
+ * party ledger. Conventions mirror web/server and the desktop ERP:
+ * opening side = OPENING vouchers; running balance is signed by party type
+ * (customer: debit − credit; supplier: credit − debit).
  */
-import { query } from '../sqlitecloud'
-import type { LedgerEntry, PartyLedgerData, PartiesSummaryData, PartySummary } from '../types'
+import { query, queryOne, safeId } from '../sqlitecloud'
+import { COMPANY_ID } from '../constants'
+import type {
+  LedgerEntry,
+  PartiesSummaryData,
+  PartyLedgerData,
+  PartyOption,
+  PartySummary,
+} from '../types'
+
+const n = (value: unknown): number => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
 
 export async function fetchPartiesSummary(): Promise<PartiesSummaryData> {
   const rows = await query<{
     id: number
     code: string
     name: string
-    party_type: string
+    partyType: string
+    phone: string | null
     debit: number
     credit: number
   }>(
-    `SELECT p.id, p.code, p.name, p.party_type,
-            COALESCE(SUM(jel.debit), 0) AS debit,
-            COALESCE(SUM(jel.credit), 0) AS credit
+    `SELECT p.id, p.code, p.name, p.party_type AS partyType, p.phone,
+            COALESCE(SUM(CASE WHEN je.is_posted = 1 THEN jel.debit ELSE 0 END), 0) AS debit,
+            COALESCE(SUM(CASE WHEN je.is_posted = 1 THEN jel.credit ELSE 0 END), 0) AS credit
      FROM parties p
-     JOIN journal_entry_lines jel ON jel.party_id = p.id
-     JOIN journal_entries je ON je.id = jel.journal_entry_id
-     WHERE p.is_active = 1 AND je.is_posted = 1
-     GROUP BY p.id
+     LEFT JOIN journal_entry_lines jel ON jel.party_id = p.id
+     LEFT JOIN journal_entries je ON je.id = jel.journal_entry_id
+     WHERE p.company_id = ${COMPANY_ID} AND p.is_active = 1
+     GROUP BY p.id, p.code, p.name, p.party_type, p.phone
      ORDER BY p.name`,
   )
 
-  const parties: PartySummary[] = rows.map((r) => {
-    const isCustomer = r.party_type === 'CUSTOMER' || r.party_type === 'BOTH'
-    const signed = isCustomer ? r.debit - r.credit : r.credit - r.debit
+  const parties: PartySummary[] = rows.map((row) => {
+    const debit = n(row.debit)
+    const credit = n(row.credit)
+    const isCustomer = row.partyType === 'CUSTOMER' || row.partyType === 'BOTH'
+    const signed = isCustomer ? debit - credit : credit - debit
+    const kind: PartySummary['kind'] =
+      Math.abs(signed) < 0.01 ? 'Settled' : signed > 0 ? (isCustomer ? 'Receivable' : 'Payable') : isCustomer ? 'Payable' : 'Receivable'
     return {
-      id: r.id,
-      code: r.code,
-      name: r.name,
-      partyType: r.party_type,
-      debit: r.debit,
-      credit: r.credit,
+      id: row.id,
+      code: row.code,
+      name: row.name,
+      partyType: row.partyType,
+      phone: row.phone,
+      debit,
+      credit,
       balance: signed,
-      kind: signed > 0.01 ? 'Receivable' : signed < -0.01 ? 'Payable' : 'Settled',
+      kind,
     }
   })
 
   return {
     receivable: parties
-      .filter((p) => p.balance > 0)
-      .reduce((sum, p) => sum + p.balance, 0),
+      .filter((party) => party.kind === 'Receivable')
+      .reduce((sum, party) => sum + Math.abs(party.balance), 0),
     payable: parties
-      .filter((p) => p.balance < 0)
-      .reduce((sum, p) => sum + Math.abs(p.balance), 0),
+      .filter((party) => party.kind === 'Payable')
+      .reduce((sum, party) => sum + Math.abs(party.balance), 0),
     parties,
   }
 }
 
-export async function fetchPartyLedger(partyId: number): Promise<PartyLedgerData> {
-  const partyRows = await query<{
-    code: string
-    name: string
-    party_type: string
-  }>(`SELECT code, name, party_type FROM parties WHERE id = ${partyId}`)
+export async function fetchPartyLedger(
+  partyId: number | string,
+  from?: string,
+  to?: string,
+): Promise<PartyLedgerData> {
+  const id = safeId(partyId)
 
-  const partyRow = partyRows[0]
+  const partyRow = await queryOne<{ code: string; name: string; party_type: string }>(
+    `SELECT code, name, party_type FROM parties
+     WHERE id = ${id} AND company_id = ${COMPANY_ID}`,
+  )
   if (!partyRow) throw new Error('Party not found')
 
   const isCustomer = partyRow.party_type === 'CUSTOMER' || partyRow.party_type === 'BOTH'
+  const periodTo = to ? `AND je.entry_date <= '${to}'` : ''
+  const beforeFrom = from
+    ? `AND je.entry_date < '${from}'`
+    : ''
 
-  const openingRows = await query<{ ob: number }>(
+  // Opening side: OPENING vouchers (or everything before the period start).
+  const openingRow = await queryOne<{ ob: number }>(
     `SELECT COALESCE(SUM(jel.debit - jel.credit), 0) AS ob
      FROM journal_entry_lines jel
      JOIN journal_entries je ON je.id = jel.journal_entry_id
-     WHERE jel.party_id = ${partyId} AND je.voucher_type = 'OPENING'
-       AND je.is_posted = 1`,
+     WHERE jel.party_id = ${id} AND je.is_posted = 1
+       AND (je.voucher_type = 'OPENING' OR (je.voucher_type != 'OPENING' ${beforeFrom}))
+       ${from ? '' : "AND je.voucher_type = 'OPENING'"}`,
   )
-  const openingNet = openingRows[0]?.ob ?? 0
+
+  const openingNet = n(openingRow?.ob)
   const openingBalance = isCustomer ? openingNet : -openingNet
 
   const rows = await query<{
@@ -91,8 +119,11 @@ export async function fetchPartyLedger(partyId: number): Promise<PartyLedgerData
      FROM journal_entry_lines jel
      JOIN journal_entries je ON je.id = jel.journal_entry_id
      JOIN accounts a ON a.id = jel.account_id
-     WHERE jel.party_id = ${partyId} AND je.is_posted = 1
-     ORDER BY je.entry_date, je.id`,
+     WHERE jel.party_id = ${id} AND je.is_posted = 1
+       AND je.voucher_type != 'OPENING'
+       ${from ? `AND je.entry_date >= '${from}'` : ''}
+       ${periodTo}
+     ORDER BY je.entry_date, je.id, jel.line_order`,
   )
 
   const entries: LedgerEntry[] = []
@@ -100,28 +131,31 @@ export async function fetchPartyLedger(partyId: number): Promise<PartyLedgerData
   let totalDebit = 0
   let totalCredit = 0
 
-  for (const r of rows) {
-    const debit = r.debit ?? 0
-    const credit = r.credit ?? 0
+  for (const row of rows) {
+    const debit = n(row.debit)
+    const credit = n(row.credit)
     running += isCustomer ? debit - credit : credit - debit
     totalDebit += debit
     totalCredit += credit
     entries.push({
-      date: r.entry_date,
-      voucherNumber: r.voucher_number,
-      voucherType: r.voucher_type,
-      description: r.description || r.voucher_type,
-      accountCode: r.account_code,
-      accountName: r.account_name,
+      date: row.entry_date,
+      voucherNumber: row.voucher_number,
+      voucherType: row.voucher_type,
+      description: row.description || row.voucher_type,
+      accountCode: row.account_code,
+      accountName: row.account_name,
       debit,
       credit,
       running,
     })
   }
 
-  let balanceLabel = 'Zero Balance'
-  if (running > 0.01) balanceLabel = isCustomer ? 'Receivable (Customer owes us)' : 'Payable (We owe supplier)'
-  else if (running < -0.01) balanceLabel = isCustomer ? 'Credit Balance (Customer overpaid)' : 'Debit Balance (Supplier owes us)'
+  let balanceLabel = 'Settled'
+  if (running > 0.01) {
+    balanceLabel = isCustomer ? 'Receivable — customer owes us' : 'Payable — we owe the supplier'
+  } else if (running < -0.01) {
+    balanceLabel = isCustomer ? 'Credit balance — customer overpaid' : 'Debit balance — supplier owes us'
+  }
 
   return {
     party: { code: partyRow.code, name: partyRow.name, partyType: partyRow.party_type },
@@ -135,17 +169,11 @@ export async function fetchPartyLedger(partyId: number): Promise<PartyLedgerData
   }
 }
 
-/** Minimal party list for the ledger picker. */
-export interface PartyOption {
-  id: number
-  code: string
-  name: string
-  partyType: string
-}
-
 export async function fetchPartyOptions(): Promise<PartyOption[]> {
   return query<PartyOption>(
     `SELECT id, code, name, party_type AS partyType
-     FROM parties WHERE is_active = 1 ORDER BY name`,
+     FROM parties
+     WHERE company_id = ${COMPANY_ID} AND is_active = 1
+     ORDER BY name`,
   )
 }

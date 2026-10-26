@@ -1,112 +1,127 @@
-/** App shell: sidebar navigation + header + routed page outlet. */
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import {
-  LayoutDashboard,
-  Users,
-  Package,
-  Receipt,
-  BarChart3,
-} from 'lucide-react'
-
-const nav = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/parties', label: 'Parties', icon: Users },
-  { to: '/inventory', label: 'Inventory', icon: Package },
-  { to: '/invoices', label: 'Invoices', icon: Receipt },
-  { to: '/reports', label: 'Reports', icon: BarChart3 },
-]
+import { useEffect, useRef, useState } from 'react'
+import { Outlet, useLocation } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { motion, useReducedMotion } from 'framer-motion'
+import Sidebar from './layout/Sidebar'
+import TopBar from './layout/TopBar'
+import { fetchCompany, fetchThemeSetting } from '../lib/queries/meta'
+import { fetchDashboard } from '../lib/queries/dashboard'
+import { applyTheme, readStoredTheme, writeStoredTheme, type ThemeMode } from '../lib/theme'
 
 export default function Layout() {
   const location = useLocation()
+  const queryClient = useQueryClient()
+  const reduce = useReducedMotion()
+
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [theme, setTheme] = useState<ThemeMode>(() => readStoredTheme() ?? 'dark')
+  const userSetTheme = useRef(readStoredTheme() !== null)
+  const [lastUpdated, setLastUpdated] = useState(() => new Date())
+
+  // Apply the active theme and persist an explicit user choice.
+  useEffect(() => {
+    applyTheme(theme)
+    if (userSetTheme.current) writeStoredTheme(theme)
+  }, [theme])
+
+  // First visit: adopt the theme stored in the ERP's APPEARANCE setting.
+  useEffect(() => {
+    if (userSetTheme.current) return
+    let cancelled = false
+    fetchThemeSetting()
+      .then((stored) => {
+        if (!cancelled && stored) setTheme(stored)
+      })
+      .catch(() => {
+        /* the default dark theme is fine */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // "System" follows the OS while the view is open.
+  useEffect(() => {
+    if (!window.matchMedia) return
+    const media = window.matchMedia('(prefers-color-scheme: light)')
+    const listener = (): void => {
+      if (theme === 'system') applyTheme('system')
+    }
+    media.addEventListener('change', listener)
+    return () => media.removeEventListener('change', listener)
+  }, [theme])
+
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [location.pathname])
+
+  const company = useQuery({
+    queryKey: ['company'],
+    queryFn: fetchCompany,
+    staleTime: 10 * 60_000,
+  })
+
+  const dashboard = useQuery({
+    queryKey: ['dashboard'],
+    queryFn: fetchDashboard,
+    staleTime: 2 * 60_000,
+  })
+
+  const refreshing = company.isFetching || dashboard.isFetching
+
+  const refresh = (): void => {
+    void queryClient.invalidateQueries()
+    setLastUpdated(new Date())
+  }
+
+  const companyName = company.data?.name ?? 'BOP Nutraceuticals'
 
   return (
     <div className="flex min-h-dvh">
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-maroon-800 focus:px-4 focus:py-2 focus:text-white"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-lg focus:bg-brand focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-white"
       >
-        Skip To Main Content
+        Skip to main content
       </a>
 
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-white/5 bg-panel/60 p-4 backdrop-blur-xl md:flex">
-        <div className="flex items-center gap-2 px-2 py-4">
-          <span aria-hidden="true" className="rounded-xl bg-gradient-to-br from-maroon-600 to-maroon-800 p-2">
-            <LayoutDashboard aria-hidden="true" className="size-5 text-white" />
-          </span>
-          <div>
-            <h1 className="text-sm font-semibold text-fg-bright">BOP Software</h1>
-            <p className="text-xs text-fg-muted">Executive Dashboard</p>
-          </div>
-        </div>
-
-        <nav aria-label="Primary" className="mt-4 flex flex-col gap-1">
-          {nav.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
-                  isActive
-                    ? 'bg-maroon-800/40 font-medium text-fg-bright'
-                    : 'text-fg-muted hover:bg-white/5 hover:text-fg-bright'
-                }`
-              }
-            >
-              <Icon aria-hidden="true" className="size-4" />
-              {label}
-            </NavLink>
-          ))}
-        </nav>
-
-        <p className="mt-auto px-2 text-xs text-fg-muted">
-          BOP Nutraceuticals ERP
-        </p>
-      </aside>
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} companyName={companyName} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 border-b border-white/5 bg-bg/70 backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-3 px-4 py-3 md:px-8">
-            <div className="flex items-center gap-2 overflow-x-auto md:hidden">
-              {nav.map(({ to, label, icon: Icon }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  end={to === '/'}
-                  aria-label={label}
-                  className={({ isActive }) =>
-                    `rounded-lg p-2 transition-colors ${
-                      isActive ? 'bg-maroon-800/40 text-fg-bright' : 'text-fg-muted hover:bg-white/5'
-                    }`
-                  }
-                >
-                  <Icon aria-hidden="true" className="size-5" />
-                </NavLink>
-              ))}
-            </div>
-            <h1 className="truncate text-sm font-medium text-fg-muted md:hidden">BOP Software</h1>
-            <p className="hidden truncate text-sm text-fg-muted md:block">
-              Live view of your ERP data, straight from SQLite Cloud
-            </p>
-            <span className="flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs text-fg-muted">
-              <span aria-hidden="true" className="size-2 rounded-full bg-success" />
-              Live
-            </span>
-            <p className="sr-only">BOP Software executive dashboard</p>
-          </div>
-        </header>
+        <TopBar
+          companyName={companyName}
+          theme={theme}
+          onThemeChange={(next) => {
+            userSetTheme.current = true
+            setTheme(next)
+          }}
+          onRefresh={refresh}
+          refreshing={refreshing}
+          lastUpdated={lastUpdated}
+          alerts={dashboard.data?.alerts ?? []}
+          onOpenSidebar={() => setSidebarOpen(true)}
+        />
 
-        <main id="main" className="flex-1 px-4 py-6 md:px-8">
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-          >
-            <Outlet />
-          </motion.div>
+        <main id="main" className="min-w-0 flex-1 px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+          <div className="mx-auto max-w-[1600px]">
+            <motion.div
+              key={location.pathname}
+              initial={reduce ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="flex min-w-0 flex-col gap-5"
+            >
+              <Outlet />
+            </motion.div>
+          </div>
         </main>
+
+        <footer className="border-t border-line px-4 py-4 text-[11px] font-medium text-muted sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-2">
+            <span>{companyName} · Executive view</span>
+            <span>Read-only · amounts in PKR</span>
+          </div>
+        </footer>
       </div>
     </div>
   )
