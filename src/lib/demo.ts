@@ -271,6 +271,22 @@ export function demoQuery<T>(sql: string): T[] {
     [/a\.account_type = 'equity'/i, balanceSheet.equity],
     [/a\.account_code in \('1000', '1020', '1010'\)/i, cashBook],
 
+    // Manufacturing
+    [/bill_of_materials[^)]*b\.is_active = 1/i, [
+      { id: 1, bom_name: 'Calcium 72', phase: 'FORMULATION', output_item_code: 'CAL-MAG-1', output_item_name: 'Calcium 72 1 KG', output_unit: 'KG', output_quantity: 1, component_count: 5, notes: null, is_active: 1, created_at: '2026-09-01' },
+      { id: 2, bom_name: 'Calcium 72 1 KG', phase: 'PACKING', output_item_code: 'CAL-MAG-1', output_item_name: 'Calcium 72 1 KG', output_unit: 'KG', output_quantity: 1, component_count: 2, notes: null, is_active: 1, created_at: '2026-09-01' },
+    ]],
+    [/bom_components[^)]*bom_id =/i, [
+      { id: 1, bom_id: 1, item_code: 'CAL-RM-1', item_name: 'Calcium Raw', item_type: 'RAW_MATERIAL', unit: 'KG', quantity_required: 0.05, wastage_percent: 0 },
+      { id: 2, bom_id: 1, item_code: 'MAG-RM-2', item_name: 'Magnesium Raw', item_type: 'RAW_MATERIAL', unit: 'KG', quantity_required: 0.02, wastage_percent: 0 },
+    ]],
+    [/production_orders[^)]*company_id =/i, [
+      { id: 1, order_number: 'PO-00001', status: 'COMPLETED', bom_name: 'Calcium 72', output_item_code: 'CAL-MAG-1', output_item_name: 'Calcium 72 1 KG', output_unit: 'KG', warehouse: 'Main Warehouse', created_by: 'Production Manager', manufacturing_date: '2026-10-01', expiry_date: '2027-10-01', planned_quantity: 100, actual_quantity: 100, wastage_quantity: 0, output_batch_number: 'PO-00001', production_cost: 17500, raw_material_cost: 17500, packing_material_cost: 0, notes: null, created_at: '2026-10-01', completed_at: '2026-10-01T12:00:00Z' },
+    ]],
+    [/packing_orders[^)]*company_id =/i, [
+      { id: 1, order_number: 'PCO-00001', status: 'COMPLETED', bom_name: 'Calcium 72 1 KG', output_item_code: 'CAL-MAG-1', output_item_name: 'Calcium 72 1 KG', output_unit: 'KG', warehouse: 'Main Warehouse', created_by: 'Production Manager', manufacturing_date: '2026-10-02', expiry_date: '2027-10-02', planned_quantity: 50, actual_quantity: 50, output_batch_number: 'PCO-00001', production_cost: 32000, notes: null, created_at: '2026-10-02', completed_at: '2026-10-02T12:00:00Z' },
+    ]],
+
     // Administration
     [/from users u/i, users],
     [/from role_permissions rp/i, roleGrants],

@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   FileBarChart,
+  Factory,
   History,
   LayoutDashboard,
   Leaf,
@@ -35,6 +36,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: '/sales', label: 'Sales Invoices', icon: Receipt },
       { to: '/purchases', label: 'Purchase Invoices', icon: ShoppingCart },
+      { to: '/manufacturing', label: 'Manufacturing', icon: Factory },
     ],
   },
   {

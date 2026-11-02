@@ -3,6 +3,7 @@ import Layout from './components/Layout'
 import DashboardPage from './pages/DashboardPage'
 import SalesInvoicesPage from './pages/SalesInvoicesPage'
 import PurchaseInvoicesPage from './pages/PurchaseInvoicesPage'
+import ManufacturingPage from './pages/ManufacturingPage'
 import PartiesPage from './pages/PartiesPage'
 import ItemsPage from './pages/ItemsPage'
 import ReportsPage from './pages/ReportsPage'
@@ -18,6 +19,7 @@ export default function App() {
         <Route index element={<DashboardPage />} />
         <Route path="sales" element={<SalesInvoicesPage />} />
         <Route path="purchases" element={<PurchaseInvoicesPage />} />
+        <Route path="manufacturing" element={<ManufacturingPage />} />
         <Route path="parties" element={<PartiesPage />} />
         <Route path="items" element={<ItemsPage />} />
         <Route path="reports" element={<ReportsPage />} />

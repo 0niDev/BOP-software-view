@@ -11,6 +11,7 @@ The viewer is intentionally read-only: it never inserts, updates or deletes reco
 | `#/` | Executive dashboard — today, month-to-date, cash/bank, trend, recent activity, alerts |
 | `#/sales` | Sales invoices with line-item detail |
 | `#/purchases` | Purchase invoices with line-item and batch detail |
+| `#/manufacturing` | Manufacturing — bills of materials, production orders and packing orders |
 | `#/parties` | Customers & suppliers, balances and running ledger |
 | `#/items` | Catalogue, stock on hand, low stock and inventory value |
 | `#/reports` | Trial balance, profit & loss, balance sheet, cash book, party ledger |

@@ -282,6 +282,99 @@ export interface CashBookData {
   closingBalance: number
 }
 
+/* ------------------------------------------------------------- manufacturing */
+
+export type BomPhase = 'FORMULATION' | 'PACKING'
+
+export interface BomRow {
+  id: number
+  name: string
+  phase: BomPhase
+  outputItemCode: string
+  outputItemName: string
+  outputUnit: string
+  outputQuantity: number
+  componentCount: number
+  notes: string | null
+  isActive: boolean
+  createdAt: string
+}
+
+export interface BomComponentRow {
+  id: number
+  bomId: number
+  itemCode: string
+  itemName: string
+  itemType: string
+  unit: string
+  quantityRequired: number
+  wastagePercent: number
+}
+
+export interface ProductionOrderRow {
+  id: number
+  orderNumber: string
+  status: string
+  bomName: string
+  outputItemCode: string
+  outputItemName: string
+  outputUnit: string
+  warehouse: string | null
+  createdBy: string | null
+  manufacturingDate: string
+  expiryDate: string | null
+  plannedQuantity: number
+  actualQuantity: number
+  wastageQuantity: number
+  outputBatchNumber: string | null
+  productionCost: number
+  rawMaterialCost: number
+  packingMaterialCost: number
+  notes: string | null
+  createdAt: string
+  completedAt: string | null
+}
+
+export interface PackingOrderRow {
+  id: number
+  orderNumber: string
+  status: string
+  bomName: string
+  outputItemCode: string
+  outputItemName: string
+  outputUnit: string
+  warehouse: string | null
+  createdBy: string | null
+  manufacturingDate: string
+  expiryDate: string | null
+  plannedQuantity: number
+  actualQuantity: number
+  outputBatchNumber: string | null
+  productionCost: number
+  notes: string | null
+  createdAt: string
+  completedAt: string | null
+}
+
+export interface ManufacturingConsumptionRow {
+  orderId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  quantity: number
+  unitCost: number
+  cost: number
+}
+
+export interface ManufacturingData {
+  boms: BomRow[]
+  components: BomComponentRow[]
+  productionOrders: ProductionOrderRow[]
+  packingOrders: PackingOrderRow[]
+  productionConsumption: ManufacturingConsumptionRow[]
+  packingConsumption: ManufacturingConsumptionRow[]
+}
+
 /* --------------------------------------------------------------------- admin */
 
 export interface UserRow {
