@@ -38,7 +38,7 @@ The browser talks directly to SQLite Cloud over HTTPS. There is no backend or so
 - Endpoint: `POST {VITE_SQLITECLOUD_URL}` with `{ "sql": "...", "database": "..." }`
 - Auth: `Authorization: Bearer <api key>`
 - Response: `{ "data": [ ...rows ] }`
-- Database: `main`
+- Database: `fix`
 
 All SQL lives in `src/lib/queries/`. Values interpolated into SQL come from constants
 or are passed through `safeId()`; no free-form user input is concatenated.
@@ -57,7 +57,7 @@ Required environment variables (in `.env.local`):
 |---|---|
 | `VITE_SQLITECLOUD_URL` | Weblite SQL endpoint, e.g. `https://<project>.<zone>.sqlite.cloud/v2/weblite/sql` |
 | `VITE_SQLITECLOUD_API_KEY` | SQLite Cloud API key |
-| `VITE_SQLITECLOUD_DATABASE` | Database file name — `main` for this project |
+| `VITE_SQLITECLOUD_DATABASE` | Database file name — `fix` for this project |
 
 > ⚠️ **Security:** the API key ships to the browser bundle and is readable by
 > anyone who opens the site. Use a **read-only, least-privilege** key, rotate it
